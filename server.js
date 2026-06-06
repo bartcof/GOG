@@ -10,15 +10,19 @@ const wss = new WebSocket.Server({ server });
 
 app.use(express.static('public'));
 
-// Файлы для сохранения данных
+// СОХРАНЕНИЕ В ФАЙЛ
 const DATA_FILE = './data.json';
 
 // Загрузка сохранённых данных
 let savedData = { users: {}, messages: {} };
 if (fs.existsSync(DATA_FILE)) {
     try {
-        savedData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    } catch(e) { console.log('Ошибка загрузки данных'); }
+        const fileContent = fs.readFileSync(DATA_FILE, 'utf8');
+        savedData = JSON.parse(fileContent);
+        console.log('✅ Загружена история из data.json');
+    } catch(e) { 
+        console.log('❌ Ошибка загрузки data.json, создаю новый'); 
+    }
 }
 
 // Хранилища
@@ -32,7 +36,6 @@ for (let [id, data] of Object.entries(savedData.users || {})) {
         name: data.name,
         avatar: data.avatar,
         bio: data.bio || '',
-        phone: data.phone || '',
         createdAt: data.createdAt,
         isAdmin: data.isAdmin || false
     });
@@ -41,9 +44,10 @@ for (let [id, data] of Object.entries(savedData.users || {})) {
 // Загружаем сохранённые сообщения
 for (let [chatId, msgs] of Object.entries(savedData.messages || {})) {
     messages.set(chatId, msgs);
+    console.log(`📁 Загружен чат ${chatId}: ${msgs.length} сообщений`);
 }
 
-// Функция сохранения данных
+// Функция сохранения
 function saveData() {
     const toSave = {
         users: {},
@@ -55,7 +59,6 @@ function saveData() {
             name: user.name,
             avatar: user.avatar,
             bio: user.bio,
-            phone: user.phone,
             createdAt: user.createdAt,
             isAdmin: user.isAdmin
         };
@@ -66,7 +69,7 @@ function saveData() {
     }
     
     fs.writeFileSync(DATA_FILE, JSON.stringify(toSave, null, 2));
-    console.log('💾 Данные сохранены');
+    console.log('💾 Данные сохранены в data.json');
 }
 
 function getChatId(user1, user2) {
@@ -81,8 +84,7 @@ function broadcastUsers() {
             name: user.name,
             avatar: user.avatar,
             online: onlineUsers.has(id),
-            bio: user.bio,
-            isAdmin: user.isAdmin
+            bio: user.bio
         });
     }
     
@@ -120,7 +122,6 @@ wss.on('connection', (ws) => {
                         avatar: msg.avatar || '😊',
                         online: true,
                         bio: msg.bio || '',
-                        phone: msg.phone || '',
                         createdAt: new Date().toISOString(),
                         isAdmin: users.size === 0
                     });
@@ -131,26 +132,27 @@ wss.on('connection', (ws) => {
                 
                 ws.send(JSON.stringify({
                     type: 'registered',
-                    userId: userId,
-                    isAdmin: users.get(userId).isAdmin
+                    userId: userId
                 }));
                 
-                // Отправляем историю сообщений
-                const userMessages = [];
+                // ОТПРАВЛЯЕМ ВСЮ ИСТОРИЮ пользователю
+                const userHistory = [];
                 for (let [chatId, msgs] of messages) {
                     if (chatId.includes(userId)) {
-                        const otherId = chatId.replace(userId, '').replace('_', '');
+                        const parts = chatId.split('_');
+                        const otherId = parts[0] === userId ? parts[1] : parts[0];
                         if (otherId && otherId !== userId) {
-                            userMessages.push({
+                            userHistory.push({
                                 withUser: otherId,
                                 messages: msgs
                             });
                         }
                     }
                 }
+                
                 ws.send(JSON.stringify({
-                    type: 'chat_history',
-                    histories: userMessages
+                    type: 'full_history',
+                    histories: userHistory
                 }));
                 
                 broadcastUsers();
@@ -172,18 +174,16 @@ wss.on('connection', (ws) => {
                         text: msg.text,
                         time: msg.time,
                         read: false,
-                        date: new Date().toISOString()
+                        timestamp: Date.now()
                     };
                     messages.get(chatId).push(newMsg);
-                    saveData();
+                    saveData(); // СОХРАНЯЕМ СРАЗУ
                     
                     // Отправляем получателю
                     if (toUser.ws && toUser.ws.readyState === WebSocket.OPEN) {
                         toUser.ws.send(JSON.stringify({
-                            type: 'message',
-                            from: msg.from,
-                            text: msg.text,
-                            time: msg.time,
+                            type: 'new_message',
+                            message: newMsg,
                             fromName: fromUser.name
                         }));
                     }
@@ -196,7 +196,7 @@ wss.on('connection', (ws) => {
                 }
             }
             
-            // ПОЛУЧЕНИЕ ИСТОРИИ
+            // ЗАПРОС ИСТОРИИ
             if (msg.type === 'get_history') {
                 const chatId = getChatId(msg.userId, msg.withUserId);
                 const history = messages.get(chatId) || [];
@@ -222,60 +222,14 @@ wss.on('connection', (ws) => {
                         if (otherUser && otherUser.ws) {
                             otherUser.ws.send(JSON.stringify({
                                 type: 'message_deleted',
-                                messageId: msg.messageId,
-                                chatId: chatId
+                                messageId: msg.messageId
                             }));
                         }
-                        ws.send(JSON.stringify({
-                            type: 'message_deleted_confirm',
-                            messageId: msg.messageId
-                        }));
                     }
                 }
             }
             
-            // УДАЛЕНИЕ АККАУНТА
-            if (msg.type === 'delete_account') {
-                if (users.has(msg.userId)) {
-                    const deletedUser = users.get(msg.userId);
-                    
-                    // Удаляем все сообщения пользователя
-                    for (let [chatId, msgs] of messages) {
-                        const filtered = msgs.filter(m => m.from !== msg.userId && m.to !== msg.userId);
-                        if (filtered.length === 0) {
-                            messages.delete(chatId);
-                        } else {
-                            messages.set(chatId, filtered);
-                        }
-                    }
-                    
-                    users.delete(msg.userId);
-                    onlineUsers.delete(msg.userId);
-                    saveData();
-                    
-                    broadcastUsers();
-                    
-                    // Уведомляем всех
-                    for (let [id, user] of users) {
-                        if (user.ws && user.ws.readyState === WebSocket.OPEN) {
-                            user.ws.send(JSON.stringify({
-                                type: 'user_deleted',
-                                userId: msg.userId,
-                                name: deletedUser.name
-                            }));
-                        }
-                    }
-                    
-                    if (deletedUser.ws) {
-                        deletedUser.ws.send(JSON.stringify({
-                            type: 'account_deleted',
-                            message: 'Ваш аккаунт был удалён'
-                        }));
-                    }
-                }
-            }
-            
-            // ОЧИСТКА ИСТОРИИ
+            // ОЧИСТКА ВСЕЙ ИСТОРИИ ЧАТА
             if (msg.type === 'clear_history') {
                 const chatId = getChatId(msg.userId, msg.withUserId);
                 if (messages.has(chatId)) {
@@ -291,9 +245,34 @@ wss.on('connection', (ws) => {
                     }
                     
                     ws.send(JSON.stringify({
-                        type: 'history_cleared_confirm',
-                        withUser: msg.withUserId
+                        type: 'history_cleared_confirm'
                     }));
+                }
+            }
+            
+            // УДАЛЕНИЕ АККАУНТА
+            if (msg.type === 'delete_account') {
+                if (users.has(msg.userId)) {
+                    // Удаляем все сообщения пользователя
+                    for (let [chatId, msgs] of messages) {
+                        const filtered = msgs.filter(m => m.from !== msg.userId && m.to !== msg.userId);
+                        if (filtered.length === 0) {
+                            messages.delete(chatId);
+                        } else {
+                            messages.set(chatId, filtered);
+                        }
+                    }
+                    
+                    users.delete(msg.userId);
+                    onlineUsers.delete(msg.userId);
+                    saveData();
+                    broadcastUsers();
+                    
+                    if (users.get(msg.userId)?.ws) {
+                        users.get(msg.userId).ws.send(JSON.stringify({
+                            type: 'account_deleted'
+                        }));
+                    }
                 }
             }
             
@@ -304,14 +283,12 @@ wss.on('connection', (ws) => {
                     if (msg.name) user.name = msg.name;
                     if (msg.avatar) user.avatar = msg.avatar;
                     if (msg.bio) user.bio = msg.bio;
-                    if (msg.phone) user.phone = msg.phone;
                     saveData();
                     
                     ws.send(JSON.stringify({
                         type: 'profile_updated',
                         name: user.name,
-                        avatar: user.avatar,
-                        bio: user.bio
+                        avatar: user.avatar
                     }));
                     broadcastUsers();
                 }
@@ -362,13 +339,14 @@ wss.on('connection', (ws) => {
     });
 });
 
-// Автосохранение каждые 30 секунд
-setInterval(saveData, 30000);
+// Автосохранение каждые 10 секунд
+setInterval(saveData, 10000);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🚀 СЕРВЕР ЗАПУЩЕН на порту ${PORT}`);
     console.log(`📱 Открой: http://localhost:${PORT}`);
     console.log(`💾 Сохранено пользователей: ${users.size}`);
-    console.log(`💬 Сохранено чатов: ${messages.size}\n`);
+    console.log(`💬 Сохранено чатов: ${messages.size}`);
+    console.log(`📁 Файл истории: ${DATA_FILE}\n`);
 });
