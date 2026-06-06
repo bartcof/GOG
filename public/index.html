@@ -3,14 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>MEGA Messenger</title>
+    <title>Мессенджер с историей</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -31,7 +26,6 @@
             border-right: 1px solid #2c3a47;
             display: flex;
             flex-direction: column;
-            height: 100vh;
         }
         
         @media (max-width: 768px) {
@@ -44,25 +38,9 @@
                 transform: translateX(-100%);
                 transition: transform 0.3s;
             }
-            .sidebar.open {
-                transform: translateX(0);
-            }
-            .menu-btn {
-                display: block;
-            }
+            .sidebar.open { transform: translateX(0); }
         }
         
-        .menu-btn {
-            display: none;
-            background: none;
-            border: none;
-            color: #50a6e5;
-            font-size: 24px;
-            cursor: pointer;
-            margin-right: 12px;
-        }
-        
-        /* Header */
         .header {
             padding: 20px 16px;
             border-bottom: 1px solid #2c3a47;
@@ -114,11 +92,6 @@
             outline: none;
         }
         
-        .search::placeholder {
-            color: #8e9eae;
-        }
-        
-        /* Users list */
         .users-list {
             flex: 1;
             overflow-y: auto;
@@ -133,14 +106,9 @@
             border-radius: 12px;
             margin-bottom: 8px;
             cursor: pointer;
-            transition: 0.2s;
-            position: relative;
         }
         
-        .user-item:active {
-            background: #2b3a4a;
-            transform: scale(0.98);
-        }
+        .user-item:active { background: #2b3a4a; }
         
         .user-avatar {
             width: 48px;
@@ -166,29 +134,9 @@
             border: 2px solid #1f2a36;
         }
         
-        .user-info {
-            flex: 1;
-        }
-        
-        .user-name-text {
-            color: white;
-            font-weight: 500;
-        }
-        
-        .user-preview {
-            font-size: 11px;
-            color: #8e9eae;
-            margin-top: 2px;
-        }
-        
-        .unread-badge {
-            background: #50a6e5;
-            color: white;
-            border-radius: 20px;
-            padding: 2px 8px;
-            font-size: 11px;
-            margin-left: 8px;
-        }
+        .user-info { flex: 1; }
+        .user-name-text { color: white; font-weight: 500; }
+        .user-preview { font-size: 11px; color: #8e9eae; margin-top: 2px; }
         
         /* Chat panel */
         .chat-panel {
@@ -216,11 +164,7 @@
             display: none;
         }
         
-        @media (max-width: 768px) {
-            .back-btn {
-                display: block;
-            }
-        }
+        @media (max-width: 768px) { .back-btn { display: block; } }
         
         .chat-avatar {
             width: 44px;
@@ -233,30 +177,10 @@
             font-size: 22px;
         }
         
-        .chat-info {
-            flex: 1;
-        }
-        
-        .chat-name {
-            color: white;
-            font-weight: 600;
-        }
-        
-        .chat-status {
-            font-size: 12px;
-            color: #8e9eae;
-        }
-        
-        .typing-status {
-            font-size: 11px;
-            color: #50a6e5;
-            margin-top: 2px;
-        }
-        
-        .chat-menu {
-            display: flex;
-            gap: 8px;
-        }
+        .chat-info { flex: 1; }
+        .chat-name { color: white; font-weight: 600; }
+        .chat-status { font-size: 12px; color: #8e9eae; }
+        .typing-status { font-size: 11px; color: #50a6e5; margin-top: 2px; }
         
         /* Messages */
         .messages-area {
@@ -271,7 +195,6 @@
         .message {
             display: flex;
             animation: fadeIn 0.2s;
-            position: relative;
         }
         
         @keyframes fadeIn {
@@ -286,7 +209,6 @@
             max-width: 70%;
             padding: 10px 14px;
             border-radius: 18px;
-            position: relative;
         }
         
         .message.sent .message-bubble {
@@ -301,51 +223,10 @@
             border-bottom-left-radius: 4px;
         }
         
-        .message-text {
-            font-size: 15px;
-            word-wrap: break-word;
-        }
+        .message-text { font-size: 15px; word-wrap: break-word; }
+        .message-time { font-size: 10px; opacity: 0.7; margin-top: 4px; text-align: right; }
         
-        .message-time {
-            font-size: 10px;
-            opacity: 0.7;
-            margin-top: 4px;
-            text-align: right;
-        }
-        
-        .message-status {
-            font-size: 10px;
-            margin-left: 4px;
-        }
-        
-        /* Context menu */
-        .context-menu {
-            position: fixed;
-            background: #1f2a36;
-            border-radius: 12px;
-            padding: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            z-index: 1000;
-            display: none;
-        }
-        
-        .context-item {
-            padding: 10px 20px;
-            cursor: pointer;
-            color: white;
-            border-radius: 8px;
-            font-size: 14px;
-        }
-        
-        .context-item:hover {
-            background: #2b3a4a;
-        }
-        
-        .context-item.danger {
-            color: #e53935;
-        }
-        
-        /* Input panel */
+        /* Input */
         .input-panel {
             padding: 12px 16px;
             background: #1f2a36;
@@ -376,14 +257,14 @@
             color: white;
             font-size: 18px;
             cursor: pointer;
-            transition: 0.2s;
         }
         
-        .send-btn:active {
-            transform: scale(0.95);
+        .empty-state {
+            text-align: center;
+            color: #8e9eae;
+            margin-top: 50px;
         }
         
-        /* Modal */
         .modal {
             display: none;
             position: fixed;
@@ -392,7 +273,6 @@
             width: 100%;
             height: 100%;
             background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(4px);
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -403,15 +283,11 @@
             padding: 24px;
             border-radius: 20px;
             width: 90%;
-            max-width: 340px;
+            max-width: 320px;
         }
         
-        .modal-content h3 {
-            color: white;
-            margin-bottom: 16px;
-        }
-        
-        .modal-content input, .modal-content textarea {
+        .modal-content h3 { color: white; margin-bottom: 16px; }
+        .modal-content input {
             width: 100%;
             padding: 12px;
             margin: 8px 0;
@@ -419,7 +295,6 @@
             border: none;
             border-radius: 12px;
             color: white;
-            font-size: 15px;
         }
         
         .modal-buttons {
@@ -434,29 +309,10 @@
             border: none;
             border-radius: 12px;
             cursor: pointer;
-            font-weight: 500;
         }
         
-        .btn-primary {
-            background: #50a6e5;
-            color: white;
-        }
-        
-        .btn-danger {
-            background: #e53935;
-            color: white;
-        }
-        
-        .btn-secondary {
-            background: #2b3a4a;
-            color: #8e9eae;
-        }
-        
-        .empty-state {
-            text-align: center;
-            color: #8e9eae;
-            margin-top: 50px;
-        }
+        .btn-primary { background: #50a6e5; color: white; }
+        .btn-secondary { background: #2b3a4a; color: #8e9eae; }
         
         .toast {
             position: fixed;
@@ -470,38 +326,31 @@
             font-size: 14px;
             z-index: 2000;
             animation: fadeIn 0.3s;
-            white-space: nowrap;
         }
     </style>
 </head>
 <body>
 <div class="app">
-    <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="header">
             <div class="user-row">
-                <div class="avatar" id="myAvatar" onclick="openProfileModal()">👤</div>
+                <div class="avatar" id="myAvatar" onclick="openSettings()">👤</div>
                 <div class="user-name" id="myName">Загрузка...</div>
-                <button class="icon-btn" onclick="openProfileModal()">⚙️</button>
+                <button class="icon-btn" onclick="openSettings()">⚙️</button>
             </div>
             <input type="text" class="search" id="searchInput" placeholder="Поиск" onkeyup="filterUsers()">
         </div>
         <div class="users-list" id="usersList"></div>
     </div>
     
-    <!-- Chat panel -->
     <div class="chat-panel">
         <div class="chat-header">
-            <button class="menu-btn" id="menuBtn" onclick="toggleSidebar()">☰</button>
-            <button class="back-btn" id="backBtn" onclick="closeChat()">←</button>
+            <button class="back-btn" onclick="closeChat()">←</button>
             <div class="chat-avatar" id="chatAvatar">💬</div>
             <div class="chat-info">
                 <div class="chat-name" id="chatName">Мессенджер</div>
                 <div class="chat-status" id="chatStatus">Выберите чат</div>
                 <div class="typing-status" id="typingStatus"></div>
-            </div>
-            <div class="chat-menu">
-                <button class="icon-btn" onclick="clearHistory()" id="clearHistoryBtn" style="display: none;">🗑️</button>
             </div>
         </div>
         <div class="messages-area" id="messagesArea">
@@ -514,36 +363,27 @@
     </div>
 </div>
 
-<!-- Profile modal -->
-<div class="modal" id="profileModal">
+<div class="modal" id="settingsModal">
     <div class="modal-content">
-        <h3>📝 Профиль</h3>
-        <input type="text" id="editName" placeholder="Имя">
-        <input type="text" id="editAvatar" placeholder="Аватар" maxlength="2">
-        <textarea id="editBio" placeholder="О себе" rows="2"></textarea>
+        <h3>Настройки профиля</h3>
+        <input type="text" id="editName" placeholder="Ваше имя">
+        <input type="text" id="editAvatar" placeholder="Аватар (эмодзи)" maxlength="2">
         <div class="modal-buttons">
             <button class="btn-primary" onclick="saveProfile()">Сохранить</button>
-            <button class="btn-danger" onclick="deleteAccount()">Удалить аккаунт</button>
-            <button class="btn-secondary" onclick="closeModal('profileModal')">Отмена</button>
+            <button class="btn-secondary" onclick="closeModal()">Отмена</button>
         </div>
     </div>
 </div>
 
 <script>
-    // ========== ПЕРЕМЕННЫЕ ==========
     let ws = null;
-    let currentUser = {
-        id: '',
-        name: '',
-        avatar: '😊',
-        bio: ''
-    };
+    let currentUser = { id: '', name: '', avatar: '😊' };
     let users = new Map();
-    let messages = new Map();
+    let messages = new Map(); // Ключ: userId, Значение: массив сообщений
     let currentChatId = null;
     let typingTimeout = null;
     
-    // ========== ИНИЦИАЛИЗАЦИЯ ==========
+    // ИНИЦИАЛИЗАЦИЯ
     function init() {
         let savedId = localStorage.getItem('userId');
         if (!savedId) {
@@ -557,15 +397,10 @@
             const data = JSON.parse(savedData);
             currentUser.name = data.name;
             currentUser.avatar = data.avatar;
-            currentUser.bio = data.bio || '';
         } else {
             currentUser.name = 'User_' + Math.floor(Math.random() * 1000);
             currentUser.avatar = ['😊', '😎', '🤓', '🥳'][Math.floor(Math.random() * 4)];
-            localStorage.setItem('userData', JSON.stringify({
-                name: currentUser.name,
-                avatar: currentUser.avatar,
-                bio: ''
-            }));
+            localStorage.setItem('userData', JSON.stringify({ name: currentUser.name, avatar: currentUser.avatar }));
         }
         
         document.getElementById('myName').textContent = currentUser.name;
@@ -583,80 +418,62 @@
                 type: 'register',
                 userId: currentUser.id,
                 name: currentUser.name,
-                avatar: currentUser.avatar,
-                bio: currentUser.bio
+                avatar: currentUser.avatar
             }));
         };
         
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            handleMessage(data);
-        };
-        
-        ws.onclose = () => {
-            setTimeout(connect, 3000);
-            showToast('🔄 Переподключение...');
-        };
-    }
-    
-    function handleMessage(data) {
-        switch(data.type) {
-            case 'registered':
-                showToast(`✨ Добро пожаловать, ${currentUser.name}!`);
-                break;
-                
-            case 'users':
+            console.log('Получено:', data.type);
+            
+            if (data.type === 'registered') {
+                console.log('Зарегистрирован');
+            }
+            
+            if (data.type === 'users') {
                 users.clear();
                 data.users.forEach(user => {
                     if (user.id !== currentUser.id) {
                         users.set(user.id, {
                             name: user.name,
                             avatar: user.avatar,
-                            online: user.online,
-                            bio: user.bio,
-                            isAdmin: user.isAdmin
+                            online: user.online
                         });
                     }
                 });
                 renderUsers();
-                break;
-                
-            case 'chat_history':
-                data.histories.forEach(history => {
-                    const otherId = history.withUser;
-                    if (otherId && otherId !== currentUser.id) {
-                        messages.set(otherId, history.messages || []);
+            }
+            
+            // ПОЛУЧАЕМ ВСЮ ИСТОРИЮ при входе
+            if (data.type === 'all_history') {
+                console.log('📜 Получена история:', data.chats.length, 'чатов');
+                data.chats.forEach(chat => {
+                    if (chat.withUser && chat.messages) {
+                        messages.set(chat.withUser, chat.messages);
+                        console.log(`  - Чат с ${chat.withUser}: ${chat.messages.length} сообщений`);
                     }
                 });
-                if (currentChatId) renderMessages();
                 renderUsers();
-                break;
+            }
+            
+            // НОВОЕ СООБЩЕНИЕ
+            if (data.type === 'new_message') {
+                const fromId = data.message.from;
+                if (!messages.has(fromId)) messages.set(fromId, []);
+                messages.get(fromId).push(data.message);
                 
-            case 'message':
-                if (!messages.has(data.from)) messages.set(data.from, []);
-                messages.get(data.from).push({
-                    id: Date.now(),
-                    text: data.text,
-                    time: data.time,
-                    isMine: false
-                });
-                
-                if (currentChatId === data.from) {
+                if (currentChatId === fromId) {
                     renderMessages();
                 } else {
-                    const user = users.get(data.from);
-                    if (user) {
-                        const unread = user.unread || 0;
-                        user.unread = unread + 1;
-                        renderUsers();
-                        showToast(`📩 ${data.fromName}: ${data.text.substring(0, 30)}`);
-                    }
+                    renderUsers();
+                    showToast(`📩 ${data.fromName}: ${data.message.text.substring(0, 30)}`);
                 }
                 renderUsers();
-                break;
-                
-            case 'message_sent':
-                if (currentChatId) {
+            }
+            
+            // ПОДТВЕРЖДЕНИЕ ОТПРАВКИ
+            if (data.type === 'message_sent') {
+                if (currentChatId === data.message.to) {
                     const msgs = messages.get(currentChatId);
                     if (msgs && msgs.length > 0) {
                         const last = msgs[msgs.length - 1];
@@ -667,44 +484,10 @@
                         }
                     }
                 }
-                break;
-                
-            case 'message_deleted':
-                if (currentChatId) {
-                    const msgs = messages.get(currentChatId);
-                    const idx = msgs.findIndex(m => m.id === data.messageId);
-                    if (idx !== -1) {
-                        msgs[idx].text = '🗑️ Сообщение удалено';
-                        msgs[idx].deleted = true;
-                        renderMessages();
-                    }
-                }
-                break;
-                
-            case 'history_cleared':
-                if (currentChatId === data.withUser) {
-                    messages.set(currentChatId, []);
-                    renderMessages();
-                    showToast('🗑️ История очищена');
-                }
-                break;
-                
-            case 'user_deleted':
-                users.delete(data.userId);
-                if (currentChatId === data.userId) {
-                    closeChat();
-                }
-                renderUsers();
-                showToast(`⚠️ ${data.name} удалил аккаунт`);
-                break;
-                
-            case 'account_deleted':
-                showToast(data.message);
-                localStorage.clear();
-                setTimeout(() => location.reload(), 2000);
-                break;
-                
-            case 'typing':
+            }
+            
+            // СТАТУС ПЕЧАТИ
+            if (data.type === 'typing') {
                 if (currentChatId === data.from) {
                     const typingDiv = document.getElementById('typingStatus');
                     if (data.isTyping) {
@@ -713,33 +496,18 @@
                         typingDiv.textContent = '';
                     }
                 }
-                break;
-                
-            case 'profile_updated':
-                if (currentUser.id === data.userId) {
-                    currentUser.name = data.name;
-                    currentUser.avatar = data.avatar;
-                    currentUser.bio = data.bio;
-                    document.getElementById('myName').textContent = currentUser.name;
-                    document.getElementById('myAvatar').textContent = currentUser.avatar;
-                    localStorage.setItem('userData', JSON.stringify({
-                        name: currentUser.name,
-                        avatar: currentUser.avatar,
-                        bio: currentUser.bio
-                    }));
-                }
-                break;
-        }
+            }
+        };
+        
+        ws.onclose = () => {
+            setTimeout(connect, 3000);
+            showToast('🔄 Переподключение...');
+        };
     }
     
-    // ========== UI ФУНКЦИИ ==========
     function renderUsers() {
-        const search = document.getElementById('searchInput').value.toLowerCase();
         const container = document.getElementById('usersList');
-        
-        const filtered = Array.from(users.entries()).filter(([id, user]) =>
-            user.name.toLowerCase().includes(search)
-        );
+        const filtered = Array.from(users.entries());
         
         if (filtered.length === 0) {
             container.innerHTML = '<div style="text-align: center; color: #8e9eae; padding: 40px;">👥 Нет пользователей</div>';
@@ -749,7 +517,7 @@
         container.innerHTML = filtered.map(([id, user]) => {
             const msgs = messages.get(id) || [];
             const lastMsg = msgs[msgs.length - 1];
-            const unread = user.unread || 0;
+            const msgCount = msgs.length;
             
             return `
                 <div class="user-item" onclick="openChat('${id}')">
@@ -759,10 +527,12 @@
                     </div>
                     <div class="user-info">
                         <div class="user-name-text">${escapeHtml(user.name)}</div>
-                        <div class="user-preview">${user.online ? '🟢 онлайн' : '⚫ не в сети'}</div>
-                        ${lastMsg ? `<div class="user-preview">${escapeHtml(lastMsg.text.substring(0, 30))}</div>` : ''}
+                        <div class="user-preview">
+                            ${user.online ? '🟢 онлайн' : '⚫ не в сети'}
+                            ${msgCount > 0 ? ` • ${msgCount} сообщ.` : ''}
+                        </div>
+                        ${lastMsg ? `<div class="user-preview">📝 ${escapeHtml(lastMsg.text.substring(0, 25))}</div>` : ''}
                     </div>
-                    ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
                 </div>
             `;
         }).join('');
@@ -780,29 +550,15 @@
         }
         
         container.innerHTML = msgs.map(msg => `
-            <div class="message ${msg.isMine ? 'sent' : 'received'}" 
-                 ${msg.isMine ? `oncontextmenu="showMessageMenu(event, ${msg.id})"` : ''}>
+            <div class="message ${msg.from === currentUser.id ? 'sent' : 'received'}">
                 <div class="message-bubble">
                     <div class="message-text">${escapeHtml(msg.text)}</div>
-                    <div class="message-time">
-                        ${msg.time || 'только что'}
-                        ${msg.isMine ? (msg.read ? ' ✓✓' : ' ✓') : ''}
-                    </div>
+                    <div class="message-time">${msg.time || 'только что'}</div>
                 </div>
             </div>
         `).join('');
         
         container.scrollTop = container.scrollHeight;
-        
-        // Отмечаем как прочитанные
-        if (currentChatId) {
-            const user = users.get(currentChatId);
-            if (user && user.unread) {
-                user.unread = 0;
-                renderUsers();
-            }
-            markAsRead(currentChatId);
-        }
     }
     
     function openChat(userId) {
@@ -812,20 +568,14 @@
         document.getElementById('chatName').textContent = user.name;
         document.getElementById('chatAvatar').textContent = user.avatar;
         document.getElementById('chatStatus').innerHTML = user.online ? '🟢 онлайн' : '⚫ не в сети';
-        document.getElementById('clearHistoryBtn').style.display = 'flex';
         
         if (window.innerWidth <= 768) {
             document.getElementById('sidebar').classList.remove('open');
         }
         
-        // Запрашиваем историю
-        ws.send(JSON.stringify({
-            type: 'get_history',
-            userId: currentUser.id,
-            withUserId: userId
-        }));
-        
+        // Показываем историю сообщений с этим пользователем
         renderMessages();
+        
         setTimeout(() => document.getElementById('messageInput').focus(), 100);
     }
     
@@ -834,7 +584,6 @@
         document.getElementById('chatName').textContent = 'Мессенджер';
         document.getElementById('chatAvatar').textContent = '💬';
         document.getElementById('chatStatus').innerHTML = 'Выберите чат';
-        document.getElementById('clearHistoryBtn').style.display = 'none';
         document.getElementById('messagesArea').innerHTML = '<div class="empty-state">✨ Нажмите на пользователя чтобы начать общение</div>';
     }
     
@@ -846,10 +595,12 @@
         
         const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         
+        // Добавляем локально
         if (!messages.has(currentChatId)) messages.set(currentChatId, []);
         messages.get(currentChatId).push({
             text: text,
             time: time,
+            from: currentUser.id,
             isMine: true
         });
         
@@ -872,60 +623,6 @@
             to: currentChatId,
             from: currentUser.id,
             isTyping: false
-        }));
-    }
-    
-    function deleteMessage(messageId) {
-        if (!currentChatId || !ws) return;
-        
-        ws.send(JSON.stringify({
-            type: 'delete_message',
-            userId: currentUser.id,
-            otherId: currentChatId,
-            messageId: messageId
-        }));
-        
-        const msgs = messages.get(currentChatId);
-        const idx = msgs.findIndex(m => m.id === messageId);
-        if (idx !== -1) {
-            msgs[idx].text = '🗑️ Сообщение удалено';
-            msgs[idx].deleted = true;
-            renderMessages();
-        }
-    }
-    
-    function clearHistory() {
-        if (!currentChatId || !confirm('Очистить всю историю переписки?')) return;
-        
-        ws.send(JSON.stringify({
-            type: 'clear_history',
-            userId: currentUser.id,
-            withUserId: currentChatId
-        }));
-        
-        messages.set(currentChatId, []);
-        renderMessages();
-        showToast('🗑️ История очищена');
-    }
-    
-    function deleteAccount() {
-        if (!confirm('❗ ВЫ УВЕРЕНЫ? Аккаунт будет удалён навсегда вместе со всей историей!')) return;
-        
-        ws.send(JSON.stringify({
-            type: 'delete_account',
-            userId: currentUser.id
-        }));
-        
-        localStorage.clear();
-        showToast('⚠️ Аккаунт удалён');
-        setTimeout(() => location.reload(), 2000);
-    }
-    
-    function markAsRead(userId) {
-        ws.send(JSON.stringify({
-            type: 'mark_read',
-            userId: currentUser.id,
-            otherId: userId
         }));
     }
     
@@ -952,53 +649,6 @@
         }, 1000);
     }
     
-    function saveProfile() {
-        const name = document.getElementById('editName').value.trim();
-        const avatar = document.getElementById('editAvatar').value.trim();
-        const bio = document.getElementById('editBio').value.trim();
-        
-        if (name) currentUser.name = name;
-        if (avatar) currentUser.avatar = avatar;
-        if (bio) currentUser.bio = bio;
-        
-        localStorage.setItem('userData', JSON.stringify({
-            name: currentUser.name,
-            avatar: currentUser.avatar,
-            bio: currentUser.bio
-        }));
-        
-        ws.send(JSON.stringify({
-            type: 'update_profile',
-            userId: currentUser.id,
-            name: currentUser.name,
-            avatar: currentUser.avatar,
-            bio: currentUser.bio
-        }));
-        
-        document.getElementById('myName').textContent = currentUser.name;
-        document.getElementById('myAvatar').textContent = currentUser.avatar;
-        
-        closeModal('profileModal');
-        showToast('✅ Профиль обновлён');
-    }
-    
-    function showMessageMenu(event, messageId) {
-        event.preventDefault();
-        
-        const menu = document.createElement('div');
-        menu.className = 'context-menu';
-        menu.style.left = event.pageX + 'px';
-        menu.style.top = event.pageY + 'px';
-        menu.innerHTML = `
-            <div class="context-item danger" onclick="deleteMessage(${messageId}); this.remove()">🗑️ Удалить</div>
-        `;
-        
-        document.body.appendChild(menu);
-        menu.style.display = 'block';
-        
-        setTimeout(() => menu.remove(), 3000);
-    }
-    
     function handleEnter(event) {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
@@ -1006,31 +656,35 @@
         }
     }
     
-    function filterUsers() {
-        renderUsers();
+    function saveProfile() {
+        const name = document.getElementById('editName').value.trim();
+        const avatar = document.getElementById('editAvatar').value.trim();
+        
+        if (name) currentUser.name = name;
+        if (avatar) currentUser.avatar = avatar;
+        
+        localStorage.setItem('userData', JSON.stringify({ name: currentUser.name, avatar: currentUser.avatar }));
+        document.getElementById('myName').textContent = currentUser.name;
+        document.getElementById('myAvatar').textContent = currentUser.avatar;
+        closeModal();
+        location.reload();
     }
     
-    function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('open');
-    }
-    
-    function openProfileModal() {
+    function openSettings() {
         document.getElementById('editName').value = currentUser.name;
         document.getElementById('editAvatar').value = currentUser.avatar;
-        document.getElementById('editBio').value = currentUser.bio || '';
-        document.getElementById('profileModal').style.display = 'flex';
+        document.getElementById('settingsModal').style.display = 'flex';
     }
     
-    function closeModal(id) {
-        document.getElementById(id).style.display = 'none';
-    }
+    function filterUsers() { renderUsers(); }
+    function closeModal() { document.getElementById('settingsModal').style.display = 'none'; }
     
     function showToast(msg) {
         const toast = document.createElement('div');
         toast.className = 'toast';
         toast.textContent = msg;
         document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2500);
+        setTimeout(() => toast.remove(), 2000);
     }
     
     function escapeHtml(text) {
@@ -1039,13 +693,6 @@
         div.textContent = text;
         return div.innerHTML;
     }
-    
-    // Пинг каждые 30 секунд
-    setInterval(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping' }));
-        }
-    }, 30000);
     
     init();
 </script>
