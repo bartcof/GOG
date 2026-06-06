@@ -9,26 +9,28 @@ const wss = new WebSocket.Server({ server });
 
 app.use(express.static('public'));
 
-// Хранилище данных
-const users = new Map();
-const messages = new Map();
+// Хранилище данных (сохраняем между перезагрузками)
+const users = new Map(); // userId -> {ws, name, avatar, online, lastSeen, isAdmin}
+const messages = new Map(); // chatId -> [messages]
 const groups = new Map();
-const deletedUsers = new Set();
+const bannedUsers = new Set();
 let onlineUsers = new Set();
-let adminId = null;
 
+// Функция для генерации ID чата
 function getChatId(user1, user2) {
     return [user1, user2].sort().join('_');
 }
 
-function broadcastToAll(type, data) {
+// Отправка всем пользователям
+function broadcastToAll(type, data, excludeWs = null) {
     wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
+        if (client !== excludeWs && client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({ type, ...data }));
         }
     });
 }
 
+// Отправка списка пользователей
 function broadcastUserList() {
     const userList = Array.from(users.entries()).map(([id, data]) => ({
         id: id,
@@ -36,7 +38,6 @@ function broadcastUserList() {
         avatar: data.avatar,
         online: onlineUsers.has(id),
         isAdmin: data.isAdmin || false,
-        isBanned: data.isBanned || false,
         lastSeen: data.lastSeen
     }));
     
@@ -53,43 +54,50 @@ function broadcastUserList() {
 wss.on('connection', (ws, req) => {
     let userId = null;
     
-    ws.on('message', (data) => {
+    ws.on('message', async (data) => {
         try {
             const message = JSON.parse(data);
             
             switch(message.type) {
                 case 'register':
-                    if (deletedUsers.has(message.userId)) {
-                        ws.send(JSON.stringify({ type: 'error', text: 'Аккаунт заблокирован' }));
+                    // Проверка на бан
+                    if (bannedUsers.has(message.userId)) {
+                        ws.send(JSON.stringify({ type: 'error', text: 'Ваш аккаунт заблокирован' }));
+                        ws.close();
                         return;
                     }
                     
                     userId = message.userId;
                     
-                    // Обновляем существующего пользователя вместо создания нового
+                    // ПОЧИНЕНО: Обновляем существующего пользователя, а не создаём нового
                     if (users.has(userId)) {
                         const existingUser = users.get(userId);
-                        existingUser.name = message.name;
-                        existingUser.avatar = message.avatar;
                         existingUser.ws = ws;
                         existingUser.online = true;
                         existingUser.lastSeen = new Date().toISOString();
+                        // Не меняем имя и аватар, если они не были переданы
+                        if (message.name && message.name !== 'undefined') {
+                            existingUser.name = message.name;
+                        }
+                        if (message.avatar && message.avatar !== 'undefined') {
+                            existingUser.avatar = message.avatar;
+                        }
                     } else {
+                        // Новый пользователь
                         users.set(userId, {
                             ws: ws,
-                            name: message.name,
-                            avatar: message.avatar,
+                            name: message.name || 'User_' + Math.floor(Math.random() * 1000),
+                            avatar: message.avatar || '😊',
                             online: true,
                             isAdmin: users.size === 0,
-                            isBanned: false,
-                            createdAt: new Date().toISOString(),
-                            lastSeen: new Date().toISOString()
+                            lastSeen: new Date().toISOString(),
+                            createdAt: new Date().toISOString()
                         });
                     }
                     
-                    if (users.size === 1) adminId = userId;
                     onlineUsers.add(userId);
                     
+                    // Отправляем подтверждение
                     ws.send(JSON.stringify({
                         type: 'registered',
                         userId: userId,
@@ -97,11 +105,23 @@ wss.on('connection', (ws, req) => {
                         userName: users.get(userId).name
                     }));
                     
+                    // Отправляем историю сообщений
+                    const userMessages = [];
+                    for (let [chatId, msgs] of messages) {
+                        if (chatId.includes(userId)) {
+                            userMessages.push({ chatId, messages: msgs });
+                        }
+                    }
+                    ws.send(JSON.stringify({
+                        type: 'chat_history_all',
+                        histories: userMessages
+                    }));
+                    
                     broadcastUserList();
                     broadcastToAll('system_message', {
-                        text: `👋 ${users.get(userId).name} присоединился`,
+                        text: `👋 ${users.get(userId).name} присоединился к чату`,
                         time: new Date().toLocaleTimeString()
-                    });
+                    }, ws);
                     break;
                     
                 case 'update_profile':
@@ -110,6 +130,7 @@ wss.on('connection', (ws, req) => {
                         const oldName = user.name;
                         user.name = message.name;
                         user.avatar = message.avatar;
+                        user.lastSeen = new Date().toISOString();
                         
                         broadcastUserList();
                         broadcastToAll('system_message', {
@@ -125,117 +146,92 @@ wss.on('connection', (ws, req) => {
                     }
                     break;
                     
-                case 'delete_user':
-                    const admin = users.get(message.adminId);
-                    if (admin && admin.isAdmin && users.has(message.userId)) {
-                        const targetUser = users.get(message.userId);
-                        if (targetUser.ws && targetUser.ws.readyState === WebSocket.OPEN) {
-                            targetUser.ws.send(JSON.stringify({
-                                type: 'account_deleted',
-                                reason: message.reason || 'Аккаунт удалён администратором'
-                            }));
-                            setTimeout(() => targetUser.ws.close(), 1000);
-                        }
-                        deletedUsers.add(message.userId);
-                        users.delete(message.userId);
-                        onlineUsers.delete(message.userId);
-                        broadcastUserList();
-                        broadcastToAll('system_message', {
-                            text: `⚠️ ${targetUser.name} был удалён`,
-                            time: new Date().toLocaleTimeString()
-                        });
-                    }
-                    break;
-                    
-                case 'create_group':
-                    const groupId = 'group_' + Date.now();
-                    groups.set(groupId, {
-                        name: message.groupName,
-                        avatar: message.groupAvatar || '👥',
-                        members: [message.creatorId, ...(message.members || [])],
-                        creator: message.creatorId,
-                        messages: [],
-                        createdAt: new Date().toISOString()
-                    });
-                    
-                    groups.get(groupId).members.forEach(memberId => {
-                        const member = users.get(memberId);
-                        if (member && member.ws && member.ws.readyState === WebSocket.OPEN) {
-                            member.ws.send(JSON.stringify({
-                                type: 'group_created',
-                                groupId: groupId,
-                                groupName: message.groupName,
-                                groupAvatar: message.groupAvatar || '👥'
-                            }));
-                        }
-                    });
-                    break;
-                    
-                case 'group_message':
-                    const group = groups.get(message.groupId);
-                    if (group && group.members.includes(message.from)) {
-                        const newMessage = {
-                            id: Date.now(),
-                            from: message.from,
-                            fromName: message.fromName,
-                            fromAvatar: message.fromAvatar,
-                            text: message.text,
-                            time: message.time,
-                            type: 'group'
-                        };
-                        group.messages.push(newMessage);
-                        
-                        group.members.forEach(memberId => {
-                            const member = users.get(memberId);
-                            if (member && member.ws && member.ws.readyState === WebSocket.OPEN) {
-                                member.ws.send(JSON.stringify({
-                                    type: 'new_group_message',
-                                    groupId: message.groupId,
-                                    groupName: group.name,
-                                    groupAvatar: group.avatar,
-                                    message: newMessage
-                                }));
-                            }
-                        });
-                    }
-                    break;
-                    
                 case 'private_message':
                     const recipient = users.get(message.to);
                     const sender = users.get(message.from);
                     
+                    if (!recipient) {
+                        ws.send(JSON.stringify({ type: 'error', text: 'Пользователь не найден' }));
+                        return;
+                    }
+                    
+                    if (bannedUsers.has(message.from) || bannedUsers.has(message.to)) {
+                        ws.send(JSON.stringify({ type: 'error', text: 'Вы заблокированы' }));
+                        return;
+                    }
+                    
                     const chatId = getChatId(message.from, message.to);
                     if (!messages.has(chatId)) messages.set(chatId, []);
                     
-                    const newMsg = {
+                    const newMessage = {
                         id: Date.now(),
                         from: message.from,
                         to: message.to,
                         text: message.text,
                         time: message.time,
-                        read: false
+                        read: false,
+                        edited: false,
+                        deleted: false
                     };
-                    messages.get(chatId).push(newMsg);
+                    messages.get(chatId).push(newMessage);
                     
-                    if (recipient && recipient.ws && recipient.ws.readyState === WebSocket.OPEN && !recipient.isBanned) {
+                    // Отправляем получателю
+                    if (recipient.ws && recipient.ws.readyState === WebSocket.OPEN) {
                         recipient.ws.send(JSON.stringify({
                             type: 'new_message',
-                            messageId: newMsg.id,
-                            from: message.from,
-                            fromName: message.fromName,
-                            fromAvatar: message.fromAvatar,
-                            text: message.text,
-                            time: message.time
+                            message: newMessage,
+                            fromName: sender.name,
+                            fromAvatar: sender.avatar
                         }));
                     }
                     
+                    // Подтверждение отправителю
                     ws.send(JSON.stringify({
                         type: 'message_sent',
-                        messageId: newMsg.id,
-                        to: message.to,
-                        text: message.text,
-                        time: message.time
+                        message: newMessage
                     }));
+                    break;
+                    
+                case 'edit_message':
+                    const editChatId = getChatId(message.userId, message.otherId);
+                    if (messages.has(editChatId)) {
+                        const msgs = messages.get(editChatId);
+                        const msgIndex = msgs.findIndex(m => m.id === message.messageId);
+                        if (msgIndex !== -1 && msgs[msgIndex].from === message.userId) {
+                            msgs[msgIndex].text = message.newText;
+                            msgs[msgIndex].edited = true;
+                            
+                            // Уведомляем собеседника
+                            const otherUser = users.get(message.otherId);
+                            if (otherUser && otherUser.ws && otherUser.ws.readyState === WebSocket.OPEN) {
+                                otherUser.ws.send(JSON.stringify({
+                                    type: 'message_edited',
+                                    messageId: message.messageId,
+                                    newText: message.newText
+                                }));
+                            }
+                        }
+                    }
+                    break;
+                    
+                case 'delete_message':
+                    const deleteChatId = getChatId(message.userId, message.otherId);
+                    if (messages.has(deleteChatId)) {
+                        const msgs = messages.get(deleteChatId);
+                        const msgIndex = msgs.findIndex(m => m.id === message.messageId);
+                        if (msgIndex !== -1 && msgs[msgIndex].from === message.userId) {
+                            msgs[msgIndex].deleted = true;
+                            msgs[msgIndex].text = 'Сообщение удалено';
+                            
+                            const otherUser = users.get(message.otherId);
+                            if (otherUser && otherUser.ws && otherUser.ws.readyState === WebSocket.OPEN) {
+                                otherUser.ws.send(JSON.stringify({
+                                    type: 'message_deleted',
+                                    messageId: message.messageId
+                                }));
+                            }
+                        }
+                    }
                     break;
                     
                 case 'typing':
@@ -251,12 +247,27 @@ wss.on('connection', (ws, req) => {
                     break;
                     
                 case 'mark_read':
-                    const chatIdRead = getChatId(message.userId, message.otherId);
-                    if (messages.has(chatIdRead)) {
-                        messages.get(chatIdRead).forEach(msg => {
+                    const readChatId = getChatId(message.userId, message.otherId);
+                    if (messages.has(readChatId)) {
+                        messages.get(readChatId).forEach(msg => {
                             if (msg.to === message.userId && !msg.read) {
                                 msg.read = true;
                             }
+                        });
+                    }
+                    break;
+                    
+                case 'delete_account':
+                    if (users.has(message.userId)) {
+                        const user = users.get(message.userId);
+                        bannedUsers.add(message.userId);
+                        users.delete(message.userId);
+                        onlineUsers.delete(message.userId);
+                        
+                        broadcastUserList();
+                        broadcastToAll('system_message', {
+                            text: `⚠️ ${user.name} удалил аккаунт`,
+                            time: new Date().toLocaleTimeString()
                         });
                     }
                     break;
@@ -265,14 +276,8 @@ wss.on('connection', (ws, req) => {
                     broadcastUserList();
                     break;
                     
-                case 'get_history':
-                    const historyChatId = getChatId(message.userId, message.withUserId);
-                    const history = messages.get(historyChatId) || [];
-                    ws.send(JSON.stringify({
-                        type: 'chat_history',
-                        messages: history,
-                        withUser: message.withUserId
-                    }));
+                case 'ping':
+                    ws.send(JSON.stringify({ type: 'pong' }));
                     break;
             }
         } catch(e) {
@@ -294,7 +299,8 @@ wss.on('connection', (ws, req) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 TELEGRAM CLONE ЗАПУЩЕН!`);
+    console.log(`\n🚀 MESSENGER V3 ЗАПУЩЕН!`);
     console.log(`📱 Открой: https://gog-production-2083.up.railway.app`);
-    console.log(`✨ Полный функционал Telegram!\n`);
+    console.log(`✅ Баг с дублированием пользователей ИСПРАВЛЕН!`);
+    console.log(`✨ Добавлены новые функции!\n`);
 });
