@@ -8,7 +8,6 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Увеличиваем лимит для фото
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
@@ -115,18 +114,15 @@ wss.on('connection', (ws) => {
             if (msg.type === 'register') {
                 userId = msg.userId;
                 
-                // Проверяем, существует ли пользователь с таким ID
                 const exists = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
                 
                 if (exists.rows.length === 0) {
-                    // Новый пользователь
                     await pool.query(
                         'INSERT INTO users (id, name, avatar, avatar_type, online) VALUES ($1, $2, $3, $4, $5)',
                         [userId, msg.name, msg.avatar || '😊', msg.avatarType || 'emoji', true]
                     );
                     console.log(`✅ Новый пользователь: ${msg.name}`);
                 } else {
-                    // Существующий пользователь - просто обновляем статус
                     await pool.query('UPDATE users SET online = TRUE, last_seen = NOW() WHERE id = $1', [userId]);
                     console.log(`✅ Пользователь вернулся: ${exists.rows[0].name}`);
                 }
@@ -139,36 +135,30 @@ wss.on('connection', (ws) => {
                     userData: exists.rows[0] || { name: msg.name, avatar: msg.avatar }
                 }));
                 
-                // Отправляем историю
                 await sendHistory(ws, userId);
-                
-                // Отправляем список пользователей
                 await broadcastUserList();
             }
             
-            // ОБНОВЛЕНИЕ ПРОФИЛЯ (никнейм и аватар)
+            // ОБНОВЛЕНИЕ ПРОФИЛЯ
             if (msg.type === 'update_profile') {
                 await updateUserProfile(msg.userId, msg.name, msg.avatar, msg.avatarType);
-                
-                // Оповещаем всех пользователей об обновлении
                 await broadcastUserList();
-                
                 ws.send(JSON.stringify({ type: 'profile_updated', success: true }));
                 console.log(`📝 Профиль обновлён: ${msg.name}`);
             }
             
-            // ПОЛУЧИТЬ ПОЛЬЗОВАТЕЛЕЙ
+            // ПОЛУЧИТЬ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ
             if (msg.type === 'get_users') {
                 await broadcastUserList();
             }
             
-            // ПОИСК ПОЛЬЗОВАТЕЛЕЙ
+            // ПОИСК ПОЛЬЗОВАТЕЛЕЙ ПО ИМЕНИ
             if (msg.type === 'search_users') {
                 const searchTerm = `%${msg.query}%`;
                 const result = await pool.query(
                     `SELECT id, name, avatar, avatar_type, online FROM users 
-                     WHERE name ILIKE $1 AND id != $2
-                     LIMIT 20`,
+                     WHERE (name ILIKE $1 OR id ILIKE $1) AND id != $2
+                     LIMIT 30`,
                     [searchTerm, msg.userId]
                 );
                 ws.send(JSON.stringify({
@@ -176,6 +166,7 @@ wss.on('connection', (ws) => {
                     users: result.rows,
                     query: msg.query
                 }));
+                console.log(`🔍 Поиск: "${msg.query}" -> найдено ${result.rows.length} пользователей`);
             }
             
             // ОТПРАВКА СООБЩЕНИЯ
