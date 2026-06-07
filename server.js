@@ -10,8 +10,14 @@ const wss = new WebSocket.Server({ server });
 
 app.use(express.static('public'));
 
-// Файл для сохранения истории
-const DATA_FILE = './history.json';
+// Файл для сохранения истории (в persistent volume)
+const DATA_DIR = process.env.DATA_DIR || './data';
+const DATA_FILE = path.join(DATA_DIR, 'history.json');
+
+// Создаём директорию если её нет
+if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 // Загружаем сохранённую историю
 let savedHistory = { messages: {} };
@@ -187,3 +193,4 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🚀 Сервер запущен на порту ${PORT}`);
     console.log(`💾 История сохранена: ${messages.size} чатов\n`);
 });
+
