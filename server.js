@@ -1,7 +1,6 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
-const path = require('path');
 const { Pool } = require('pg');
 
 const app = express();
@@ -12,7 +11,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
-// Подключение к БД Railway
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
@@ -21,12 +19,10 @@ const pool = new Pool({
 // ПЕРЕСОЗДАНИЕ ТАБЛИЦ
 async function initDB() {
     try {
-        // Удаляем старые таблицы если есть
         await pool.query('DROP TABLE IF EXISTS friends CASCADE');
         await pool.query('DROP TABLE IF EXISTS messages CASCADE');
         await pool.query('DROP TABLE IF EXISTS users CASCADE');
         
-        // Создаём таблицу users
         await pool.query(`
             CREATE TABLE users (
                 id VARCHAR(100) PRIMARY KEY,
@@ -40,7 +36,6 @@ async function initDB() {
             )
         `);
         
-        // Создаём таблицу messages
         await pool.query(`
             CREATE TABLE messages (
                 id BIGINT PRIMARY KEY,
@@ -52,7 +47,6 @@ async function initDB() {
             )
         `);
         
-        // Создаём таблицу friends
         await pool.query(`
             CREATE TABLE friends (
                 user_id VARCHAR(100) REFERENCES users(id) ON DELETE CASCADE,
@@ -92,6 +86,17 @@ async function broadcastUserList() {
     }
 }
 
+// Оповещение конкретного пользователя об изменениях другого пользователя
+async function notifyUserAboutProfileChange(targetUserId, changedUser) {
+    const ws = activeUsers.get(targetUserId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'user_profile_updated',
+            user: changedUser
+        }));
+    }
+}
+
 async function sendHistory(ws, userId) {
     try {
         const result = await pool.query(
@@ -109,11 +114,7 @@ async function sendHistory(ws, userId) {
 async function addFriend(userId, friendId) {
     try {
         if (userId === friendId) return false;
-        
-        const existing = await pool.query(
-            'SELECT * FROM friends WHERE user_id = $1 AND friend_id = $2',
-            [userId, friendId]
-        );
+        const existing = await pool.query('SELECT * FROM friends WHERE user_id = $1 AND friend_id = $2', [userId, friendId]);
         if (existing.rows.length === 0) {
             await pool.query('INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)', [userId, friendId]);
             await pool.query('INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)', [friendId, userId]);
@@ -121,7 +122,6 @@ async function addFriend(userId, friendId) {
         }
         return false;
     } catch(e) {
-        console.error('Ошибка addFriend:', e.message);
         return false;
     }
 }
@@ -130,8 +130,7 @@ async function getFriends(userId) {
     try {
         const result = await pool.query(
             `SELECT u.id, u.name, u.avatar, u.avatar_type, u.online, u.bio 
-             FROM friends f JOIN users u ON f.friend_id = u.id 
-             WHERE f.user_id = $1`,
+             FROM friends f JOIN users u ON f.friend_id = u.id WHERE f.user_id = $1`,
             [userId]
         );
         return result.rows;
@@ -149,8 +148,8 @@ wss.on('connection', (ws) => {
             
             if (msg.type === 'register') {
                 userId = msg.userId;
-                
                 const exists = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+                
                 if (exists.rows.length === 0) {
                     const inviteCode = generateInviteCode();
                     await pool.query(
@@ -162,16 +161,11 @@ wss.on('connection', (ws) => {
                 }
                 
                 activeUsers.set(userId, ws);
-                
                 const userData = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
-                ws.send(JSON.stringify({ 
-                    type: 'registered', 
-                    userId: userId,
-                    userData: userData.rows[0]
-                }));
                 
-                // Реферальная система
-                if (msg.refCode && msg.refCode !== 'null' && msg.refCode !== 'undefined') {
+                ws.send(JSON.stringify({ type: 'registered', userId, userData: userData.rows[0] }));
+                
+                if (msg.refCode && msg.refCode !== 'null') {
                     const referrer = await pool.query('SELECT id FROM users WHERE invite_code = $1', [msg.refCode]);
                     if (referrer.rows.length > 0 && referrer.rows[0].id !== userId) {
                         await addFriend(referrer.rows[0].id, userId);
@@ -186,15 +180,15 @@ wss.on('connection', (ws) => {
                 }
                 
                 await sendHistory(ws, userId);
-                
                 const friendsList = await getFriends(userId);
                 ws.send(JSON.stringify({ type: 'friends_list', friends: friendsList }));
-                
                 await broadcastUserList();
             }
             
             if (msg.type === 'update_profile') {
                 await pool.query('UPDATE users SET name = $1, bio = $2 WHERE id = $3', [msg.name, msg.bio || '', msg.userId]);
+                // Отправить обновлённые данные всем
+                const updatedUser = await pool.query('SELECT id, name, avatar, avatar_type, online, bio FROM users WHERE id = $1', [msg.userId]);
                 await broadcastUserList();
                 ws.send(JSON.stringify({ type: 'profile_updated' }));
             }
@@ -208,26 +202,20 @@ wss.on('connection', (ws) => {
             if (msg.type === 'get_invite_link') {
                 const user = await pool.query('SELECT invite_code FROM users WHERE id = $1', [msg.userId]);
                 if (user.rows.length > 0) {
-                    ws.send(JSON.stringify({
-                        type: 'invite_link',
-                        link: `${msg.baseUrl}?ref=${user.rows[0].invite_code}`
-                    }));
+                    ws.send(JSON.stringify({ type: 'invite_link', link: `${msg.baseUrl}?ref=${user.rows[0].invite_code}` }));
                 }
             }
             
             if (msg.type === 'add_friend') {
-                const success = await addFriend(msg.userId, msg.friendId);
-                ws.send(JSON.stringify({ type: 'friend_added', success: success }));
-                
+                await addFriend(msg.userId, msg.friendId);
+                ws.send(JSON.stringify({ type: 'friend_added', success: true }));
                 const friendsList = await getFriends(msg.userId);
                 ws.send(JSON.stringify({ type: 'friends_list', friends: friendsList }));
-                
                 const friendWs = activeUsers.get(msg.friendId);
                 if (friendWs && friendWs.readyState === WebSocket.OPEN) {
                     const friendFriendsList = await getFriends(msg.friendId);
                     friendWs.send(JSON.stringify({ type: 'friends_list', friends: friendFriendsList }));
                 }
-                
                 await broadcastUserList();
             }
             
@@ -245,39 +233,28 @@ wss.on('connection', (ws) => {
                 const searchTerm = `%${msg.query.toLowerCase()}%`;
                 const result = await pool.query(
                     `SELECT id, name, avatar, avatar_type, online, bio FROM users 
-                     WHERE LOWER(name) LIKE $1 AND id != $2
-                     LIMIT 50`,
+                     WHERE LOWER(name) LIKE $1 AND id != $2 LIMIT 50`,
                     [searchTerm, msg.userId]
                 );
-                ws.send(JSON.stringify({
-                    type: 'search_results',
-                    users: result.rows,
-                    query: msg.query
-                }));
+                ws.send(JSON.stringify({ type: 'search_results', users: result.rows, query: msg.query }));
             }
             
             if (msg.type === 'message') {
                 const messageId = Date.now();
-                const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                
-                await pool.query(
-                    'INSERT INTO messages (id, from_user, to_user, text, time) VALUES ($1, $2, $3, $4, $5)',
-                    [messageId, msg.from, msg.to, msg.text, time]
-                );
+                const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                await pool.query('INSERT INTO messages (id, from_user, to_user, text, time) VALUES ($1, $2, $3, $4, $5)',
+                    [messageId, msg.from, msg.to, msg.text, time]);
                 
                 const toWs = activeUsers.get(msg.to);
                 if (toWs && toWs.readyState === WebSocket.OPEN) {
                     toWs.send(JSON.stringify({
                         type: 'new_message',
-                        message: { id: messageId, from: msg.from, to: msg.to, text: msg.text, time: time },
-                        fromName: msg.fromName,
-                        fromAvatar: msg.fromAvatar
+                        message: { id: messageId, from: msg.from, to: msg.to, text: msg.text, time },
+                        fromName: msg.fromName
                     }));
                 }
-                
-                ws.send(JSON.stringify({ type: 'message_sent', messageId: messageId }));
+                ws.send(JSON.stringify({ type: 'message_sent' }));
             }
-            
         } catch(e) {
             console.error('Ошибка:', e.message);
         }
