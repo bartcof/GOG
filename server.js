@@ -50,7 +50,7 @@ async function initDB() {
             CREATE TABLE IF NOT EXISTS friends (
                 user_id VARCHAR(100) REFERENCES users(id),
                 friend_id VARCHAR(100) REFERENCES users(id),
-                status VARCHAR(20) DEFAULT 'pending',
+                status VARCHAR(20) DEFAULT 'accepted',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (user_id, friend_id)
             )
@@ -66,7 +66,6 @@ initDB();
 
 const activeUsers = new Map();
 
-// Генерация кода приглашения
 function generateInviteCode() {
     return Math.random().toString(36).substring(2, 10).toUpperCase();
 }
@@ -75,7 +74,7 @@ async function broadcastUserList() {
     try {
         const result = await pool.query('SELECT id, name, avatar, avatar_type, online, invite_code FROM users ORDER BY name');
         for (let [userId, ws] of activeUsers) {
-            if (ws.readyState === WebSocket.OPEN) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
                     type: 'users_list',
                     users: result.rows,
@@ -91,10 +90,12 @@ async function broadcastUserList() {
 async function sendHistory(ws, userId) {
     try {
         const result = await pool.query(
-            `SELECT * FROM messages WHERE from_user = $1 OR to_user = $1 ORDER BY created_at ASC`,
+            `SELECT * FROM messages WHERE from_user = $1 OR to_user = $1 ORDER BY created_at ASC LIMIT 500`,
             [userId]
         );
-        ws.send(JSON.stringify({ type: 'chat_history', messages: result.rows }));
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'chat_history', messages: result.rows }));
+        }
     } catch(e) {
         console.error('Ошибка:', e.message);
     }
@@ -102,25 +103,24 @@ async function sendHistory(ws, userId) {
 
 async function addFriend(userId, friendId) {
     try {
-        // Проверяем, не друзья ли уже
         const existing = await pool.query(
-            'SELECT * FROM friends WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)',
+            'SELECT * FROM friends WHERE (user_id = $1 AND friend_id = $2)',
             [userId, friendId]
         );
         if (existing.rows.length === 0) {
             await pool.query(
-                'INSERT INTO friends (user_id, friend_id, status) VALUES ($1, $2, $3)',
-                [userId, friendId, 'accepted']
+                'INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)',
+                [userId, friendId]
             );
             await pool.query(
-                'INSERT INTO friends (user_id, friend_id, status) VALUES ($1, $2, $3)',
-                [friendId, userId, 'accepted']
+                'INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)',
+                [friendId, userId]
             );
             return true;
         }
         return false;
     } catch(e) {
-        console.error('Ошибка добавления друга:', e.message);
+        console.error('Ошибка:', e.message);
         return false;
     }
 }
@@ -129,10 +129,17 @@ async function getFriends(userId) {
     const result = await pool.query(
         `SELECT u.id, u.name, u.avatar, u.avatar_type, u.online 
          FROM friends f JOIN users u ON f.friend_id = u.id 
-         WHERE f.user_id = $1 AND f.status = 'accepted'`,
+         WHERE f.user_id = $1`,
         [userId]
     );
     return result.rows;
+}
+
+async function updateUserAvatar(userId, avatar, avatarType) {
+    await pool.query(
+        'UPDATE users SET avatar = $1, avatar_type = $2 WHERE id = $3',
+        [avatar, avatarType, userId]
+    );
 }
 
 wss.on('connection', (ws) => {
@@ -158,16 +165,13 @@ wss.on('connection', (ws) => {
                 
                 activeUsers.set(userId, ws);
                 
-                // Отправляем данные пользователя
                 const userData = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
                 ws.send(JSON.stringify({ 
                     type: 'registered', 
                     userId: userId,
-                    userData: userData.rows[0],
-                    inviteLink: `${msg.referrer || ''}?ref=${userData.rows[0].invite_code}`
+                    userData: userData.rows[0]
                 }));
                 
-                // Обработка реферальной ссылки
                 if (msg.refCode) {
                     const referrer = await pool.query('SELECT id FROM users WHERE invite_code = $1', [msg.refCode]);
                     if (referrer.rows.length > 0 && referrer.rows[0].id !== userId) {
@@ -181,11 +185,17 @@ wss.on('connection', (ws) => {
             
             if (msg.type === 'update_profile') {
                 await pool.query(
-                    'UPDATE users SET name = $1, avatar = $2, avatar_type = $3, bio = $4 WHERE id = $5',
-                    [msg.name, msg.avatar, msg.avatarType, msg.bio || '', msg.userId]
+                    'UPDATE users SET name = $1, bio = $2 WHERE id = $3',
+                    [msg.name, msg.bio || '', msg.userId]
                 );
                 await broadcastUserList();
                 ws.send(JSON.stringify({ type: 'profile_updated' }));
+            }
+            
+            if (msg.type === 'update_avatar') {
+                await updateUserAvatar(msg.userId, msg.avatar, msg.avatarType);
+                await broadcastUserList();
+                ws.send(JSON.stringify({ type: 'avatar_updated' }));
             }
             
             if (msg.type === 'get_invite_link') {
@@ -200,13 +210,13 @@ wss.on('connection', (ws) => {
             
             if (msg.type === 'add_friend') {
                 const success = await addFriend(msg.userId, msg.friendId);
-                ws.send(JSON.stringify({ type: 'friend_added', success: success, friendId: msg.friendId }));
+                ws.send(JSON.stringify({ type: 'friend_added', success: success }));
                 await broadcastUserList();
             }
             
             if (msg.type === 'get_friends') {
-                const friends = await getFriends(msg.userId);
-                ws.send(JSON.stringify({ type: 'friends_list', friends: friends }));
+                const friendsList = await getFriends(msg.userId);
+                ws.send(JSON.stringify({ type: 'friends_list', friends: friendsList }));
             }
             
             if (msg.type === 'get_users') {
@@ -244,7 +254,7 @@ wss.on('connection', (ws) => {
                         fromAvatar: msg.fromAvatar
                     }));
                 }
-                ws.send(JSON.stringify({ type: 'message_sent', messageId: messageId }));
+                ws.send(JSON.stringify({ type: 'message_sent' }));
             }
             
         } catch(e) {
