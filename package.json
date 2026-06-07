@@ -1,17 +1,14 @@
 {
-  "name": "messenger-app",
+  "name": "messenger",
   "version": "1.0.0",
-  "description": "Real-time messenger with WebSocket",
+  "description": "Real-time messenger",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "ws": "^8.14.2",
-    "pg": "^8.11.3"
-  },
-  "engines": {
-    "node": ">=18.x"
+    "pg": "^8.11.3",
+    "ws": "^8.14.2"
   }
 }
