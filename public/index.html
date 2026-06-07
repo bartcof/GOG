@@ -201,6 +201,7 @@
             cursor: pointer;
             width: 44px; height: 44px;
         }
+        .back-btn { display: none; }
         .chat-avatar {
             width: 44px; height: 44px;
             border-radius: 50%;
@@ -371,11 +372,13 @@
         @media (min-width: 768px) {
             .dialogs { transform: translateX(0); position: relative; width: 360px; }
             .menu-toggle { display: none; }
+            .back-btn { display: none !important; }
             .chat-area { width: calc(100% - 360px); }
         }
         @media (max-width: 767px) {
             .dialogs { width: 85%; max-width: 320px; }
             .message-bubble { max-width: 85%; }
+            .back-btn { display: block !important; }
         }
     </style>
 </head>
@@ -437,7 +440,7 @@
         </div>
         <div class="photo-upload">
             <label for="photoUpload">📷 Загрузить фото</label>
-            <input type="file" id="photoUpload" accept="image/*" onchange="uploadPhoto(this)">
+            <input type="file" id="photoUpload" accept="image/*">
         </div>
         <div class="modal-buttons">
             <button class="btn-primary" onclick="saveProfile()">Сохранить</button>
@@ -479,6 +482,7 @@
     let searchResults = [];
     let isSearching = false;
     let inviteLink = '';
+    let reconnectAttempts = 0;
     
     function init() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -522,14 +526,18 @@
                 if (query.length === 0) {
                     isSearching = false;
                     searchResults = [];
-                    ws.send(JSON.stringify({ type: 'get_users' }));
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'get_users', userId: currentUser.id }));
+                    }
                 } else {
                     isSearching = true;
-                    ws.send(JSON.stringify({
-                        type: 'search_users',
-                        userId: currentUser.id,
-                        query: query
-                    }));
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'search_users',
+                            userId: currentUser.id,
+                            query: query
+                        }));
+                    }
                 }
             }, 500);
         });
@@ -543,6 +551,14 @@
             }
         });
         
+        document.getElementById('photoUpload').addEventListener('change', function(e) {
+            uploadPhoto(e.target);
+        });
+        
+        initAvatarOptions();
+    }
+    
+    function initAvatarOptions() {
         document.querySelectorAll('.avatar-option').forEach(opt => {
             opt.onclick = () => {
                 document.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
@@ -555,10 +571,11 @@
     
     function updateAvatarDisplay(elementId, avatar, type) {
         const element = document.getElementById(elementId);
+        if (!element) return;
         if (type === 'photo' && avatar && avatar.startsWith('data:image')) {
             element.innerHTML = `<img src="${avatar}">`;
         } else {
-            element.innerHTML = avatar;
+            element.innerHTML = avatar || '😊';
         }
     }
     
@@ -572,10 +589,14 @@
                 document.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
                 const preview = document.createElement('div');
                 preview.className = 'avatar-option selected';
-                preview.innerHTML = `<img src="${selectedAvatar}">`;
+                preview.innerHTML = `<img src="${selectedAvatar}" style="width:100%;height:100%;object-fit:cover;">`;
+                preview.dataset.avatar = selectedAvatar;
+                preview.dataset.type = 'photo';
                 preview.onclick = () => {
                     document.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
                     preview.classList.add('selected');
+                    selectedAvatar = preview.dataset.avatar;
+                    selectedAvatarType = 'photo';
                 };
                 document.getElementById('avatarOptions').appendChild(preview);
             };
@@ -585,128 +606,151 @@
     
     function connect(refCode) {
         const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        ws = new WebSocket(`${protocol}//${location.host}`);
+        const host = location.host;
+        ws = new WebSocket(`${protocol}//${host}`);
         
         ws.onopen = () => {
+            reconnectAttempts = 0;
             ws.send(JSON.stringify({
                 type: 'register',
                 userId: currentUser.id,
                 name: currentUser.name,
                 avatar: currentUser.avatar,
                 avatarType: currentUser.avatarType,
-                refCode: refCode,
-                referrer: window.location.origin
+                bio: currentUser.bio,
+                refCode: refCode
             }));
         };
         
         ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            
-            if (data.type === 'registered') {
-                if (data.userData) {
-                    currentUser.name = data.userData.name;
-                    currentUser.avatar = data.userData.avatar;
-                    currentUser.avatarType = data.userData.avatar_type;
-                    updateAvatarDisplay('myAvatar', currentUser.avatar, currentUser.avatarType);
-                    document.getElementById('myName').textContent = currentUser.name;
-                }
-                ws.send(JSON.stringify({ type: 'get_friends', userId: currentUser.id }));
-            }
-            
-            if (data.type === 'users_list') {
-                if (!isSearching) {
-                    allUsers = data.users.filter(u => u.id !== currentUser.id);
-                    updateChatsFromMessages();
-                    renderList();
-                }
-            }
-            
-            if (data.type === 'search_results') {
-                searchResults = data.users;
-                renderList();
-                if (data.query && data.query.length > 0) {
-                    showToast(`🔍 Найдено ${data.users.length} пользователей`);
-                }
-            }
-            
-            if (data.type === 'friends_list') {
-                friends = data.friends;
-                renderList();
-            }
-            
-            if (data.type === 'friend_added') {
-                if (data.success) {
-                    showToast('✅ Пользователь добавлен в друзья!');
-                    ws.send(JSON.stringify({ type: 'get_friends', userId: currentUser.id }));
-                    ws.send(JSON.stringify({ type: 'get_users' }));
-                }
-            }
-            
-            if (data.type === 'invite_link') {
-                inviteLink = data.link;
-                document.getElementById('inviteLinkBox').innerHTML = inviteLink;
-                document.getElementById('inviteModal').style.display = 'flex';
-            }
-            
-            if (data.type === 'chat_history') {
-                data.messages.forEach(msg => {
-                    const otherId = msg.from_user === currentUser.id ? msg.to_user : msg.from_user;
-                    if (!messages[otherId]) messages[otherId] = [];
-                    messages[otherId].push({
-                        text: msg.text,
-                        time: msg.time,
-                        isMine: msg.from_user === currentUser.id,
-                        id: msg.id
-                    });
-                });
-                updateChatsFromMessages();
-                if (currentChatId) renderMessages();
-                renderList();
-            }
-            
-            if (data.type === 'new_message') {
-                if (!messages[data.message.from]) messages[data.message.from] = [];
-                messages[data.message.from].push({
-                    text: data.message.text,
-                    time: data.message.time,
-                    isMine: false
-                });
-                updateChatsFromMessages();
-                if (currentChatId === data.message.from) {
-                    renderMessages();
-                } else {
-                    showToast(`📩 ${data.fromName}: ${data.message.text.substring(0, 30)}`);
-                }
-                renderList();
-            }
-            
-            if (data.type === 'avatar_updated') {
-                showToast('✅ Аватар обновлён');
-            }
-            
-            if (data.type === 'profile_updated') {
-                showToast('✅ Профиль обновлён');
+            try {
+                const data = JSON.parse(event.data);
+                handleMessage(data);
+            } catch(e) {
+                console.error('Ошибка парсинга:', e);
             }
         };
         
         ws.onclose = () => {
-            setTimeout(() => connect(null), 3000);
-            showToast('🔄 Переподключение...');
+            if (reconnectAttempts < 10) {
+                reconnectAttempts++;
+                setTimeout(() => connect(null), 3000 * Math.min(reconnectAttempts, 5));
+            }
+        };
+        
+        ws.onerror = (err) => {
+            console.error('WebSocket ошибка:', err);
         };
     }
     
+    function handleMessage(data) {
+        if (data.type === 'registered') {
+            if (data.userData) {
+                currentUser.name = data.userData.name;
+                currentUser.avatar = data.userData.avatar;
+                currentUser.avatarType = data.userData.avatar_type;
+                currentUser.bio = data.userData.bio || '';
+                updateAvatarDisplay('myAvatar', currentUser.avatar, currentUser.avatarType);
+                document.getElementById('myName').textContent = currentUser.name;
+                localStorage.setItem('userData', JSON.stringify({
+                    name: currentUser.name,
+                    avatar: currentUser.avatar,
+                    avatarType: currentUser.avatarType,
+                    bio: currentUser.bio
+                }));
+            }
+        }
+        
+        if (data.type === 'users_list') {
+            if (!isSearching) {
+                allUsers = data.users.filter(u => u.id !== currentUser.id);
+                updateChatsFromMessages();
+                renderList();
+            }
+        }
+        
+        if (data.type === 'search_results') {
+            searchResults = data.users;
+            renderList();
+        }
+        
+        if (data.type === 'friends_list') {
+            friends = data.friends;
+            renderList();
+        }
+        
+        if (data.type === 'friend_added' && data.success) {
+            showToast('✅ Пользователь добавлен в друзья!');
+        }
+        
+        if (data.type === 'friend_added_notify') {
+            showToast(`✨ ${data.friend.name} присоединился по вашей ссылке!`);
+        }
+        
+        if (data.type === 'invite_link') {
+            inviteLink = data.link;
+            document.getElementById('inviteLinkBox').innerHTML = inviteLink;
+            document.getElementById('inviteModal').style.display = 'flex';
+        }
+        
+        if (data.type === 'chat_history') {
+            messages = {};
+            data.messages.forEach(msg => {
+                const otherId = msg.from_user === currentUser.id ? msg.to_user : msg.from_user;
+                if (!messages[otherId]) messages[otherId] = [];
+                messages[otherId].push({
+                    text: msg.text,
+                    time: msg.time,
+                    isMine: msg.from_user === currentUser.id,
+                    id: msg.id
+                });
+            });
+            updateChatsFromMessages();
+            if (currentChatId) renderMessages();
+            renderList();
+        }
+        
+        if (data.type === 'new_message') {
+            const fromId = data.message.from;
+            if (!messages[fromId]) messages[fromId] = [];
+            messages[fromId].push({
+                text: data.message.text,
+                time: data.message.time,
+                isMine: false,
+                id: data.message.id
+            });
+            updateChatsFromMessages();
+            if (currentChatId === fromId) {
+                renderMessages();
+            } else {
+                showToast(`📩 ${data.fromName || 'Новое сообщение'}: ${data.message.text.substring(0, 30)}`);
+            }
+            renderList();
+        }
+        
+        if (data.type === 'avatar_updated') {
+            showToast('✅ Аватар обновлён');
+        }
+        
+        if (data.type === 'profile_updated') {
+            showToast('✅ Профиль обновлён');
+        }
+    }
+    
     function addFriend(userId) {
-        ws.send(JSON.stringify({
-            type: 'add_friend',
-            userId: currentUser.id,
-            friendId: userId
-        }));
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'add_friend',
+                userId: currentUser.id,
+                friendId: userId
+            }));
+        }
     }
     
     function updateChatsFromMessages() {
         const chatsMap = new Map();
         for (let [userId, msgs] of Object.entries(messages)) {
-            if (msgs.length > 0) {
+            if (msgs && msgs.length > 0) {
                 const user = allUsers.find(u => u.id === userId);
                 if (user) {
                     chatsMap.set(userId, {
@@ -742,7 +786,7 @@
             displayUsers = allUsers;
         }
         
-        if (displayUsers.length === 0) {
+        if (!displayUsers || displayUsers.length === 0) {
             if (currentTab === 'chats') {
                 container.innerHTML = '<div class="empty-state">💬 Нет активных чатов<br>Напишите кому-нибудь!</div>';
             } else if (currentTab === 'friends') {
@@ -763,18 +807,18 @@
             const isFriend = friends.some(f => f.id === user.id);
             return `
                 <div class="dialog-item">
-                    <div class="dialog-avatar" onclick="openChat('${user.id}', '${escapeHtml(user.name)}', '${user.avatar}', '${user.avatar_type || 'emoji'}')">
+                    <div class="dialog-avatar" onclick="openChat('${user.id}', '${escapeHtml(user.name)}', '${user.avatar || '😊'}', '${user.avatar_type || 'emoji'}')">
                         ${avatarHtml}
                         ${user.online ? '<div class="online-dot"></div>' : ''}
                     </div>
-                    <div class="dialog-info" onclick="openChat('${user.id}', '${escapeHtml(user.name)}', '${user.avatar}', '${user.avatar_type || 'emoji'}')">
+                    <div class="dialog-info" onclick="openChat('${user.id}', '${escapeHtml(user.name)}', '${user.avatar || '😊'}', '${user.avatar_type || 'emoji'}')">
                         <div class="dialog-name">${escapeHtml(user.name)}</div>
                         <div class="dialog-last">
                             ${user.online ? '🟢 онлайн' : '⚫ не в сети'}
                             ${user.lastMessage ? ` • ${escapeHtml(user.lastMessage.substring(0, 30))}` : ''}
                         </div>
                     </div>
-                    ${!isFriend && currentTab !== 'friends' ? `<button class="add-friend-btn" onclick="event.stopPropagation(); addFriend('${user.id}')">➕ Друг</button>` : ''}
+                    ${!isFriend && currentTab !== 'friends' && currentTab !== 'chats' ? `<button class="add-friend-btn" onclick="event.stopPropagation(); addFriend('${user.id}')">➕ Друг</button>` : ''}
                 </div>
             `;
         }).join('');
@@ -790,7 +834,8 @@
             document.getElementById('chatAvatar').innerHTML = avatar || '💬';
         }
         
-        document.getElementById('chatStatus').innerHTML = 'онлайн';
+        const user = allUsers.find(u => u.id === userId) || friends.find(f => f.id === userId);
+        document.getElementById('chatStatus').innerHTML = user?.online ? '🟢 онлайн' : '⚫ не в сети';
         
         if (window.innerWidth <= 768) {
             document.getElementById('dialogs').classList.remove('open');
@@ -848,10 +893,12 @@
         const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
         
         if (!messages[currentChatId]) messages[currentChatId] = [];
+        const tempId = Date.now();
         messages[currentChatId].push({
             text: text,
             time: time,
-            isMine: true
+            isMine: true,
+            id: tempId
         });
         
         ws.send(JSON.stringify({
@@ -859,7 +906,6 @@
             from: currentUser.id,
             to: currentChatId,
             text: text,
-            time: time,
             fromName: currentUser.name,
             fromAvatar: currentUser.avatar
         }));
@@ -878,15 +924,18 @@
     }
     
     function openSettings() {
+        closeModal();
         document.getElementById('settingsModal').style.display = 'flex';
     }
     
     function showInviteLink() {
-        ws.send(JSON.stringify({
-            type: 'get_invite_link',
-            userId: currentUser.id,
-            baseUrl: window.location.origin
-        }));
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'get_invite_link',
+                userId: currentUser.id,
+                baseUrl: window.location.origin
+            }));
+        }
         closeModal();
     }
     
@@ -902,6 +951,13 @@
         document.getElementById('profileModal').style.display = 'flex';
         selectedAvatar = currentUser.avatar;
         selectedAvatarType = currentUser.avatarType;
+        
+        document.querySelectorAll('.avatar-option').forEach(opt => {
+            opt.classList.remove('selected');
+            if (opt.dataset.avatar === currentUser.avatar && opt.dataset.type === currentUser.avatarType) {
+                opt.classList.add('selected');
+            }
+        });
         closeModal();
     }
     
@@ -916,6 +972,7 @@
         const newAvatar = selectedAvatar || currentUser.avatar;
         const newAvatarType = selectedAvatarType || currentUser.avatarType;
         
+        const oldName = currentUser.name;
         currentUser.name = name;
         currentUser.bio = bio;
         
@@ -926,16 +983,16 @@
             bio: currentUser.bio
         }));
         
-        // Обновляем имя и био
-        ws.send(JSON.stringify({
-            type: 'update_profile',
-            userId: currentUser.id,
-            name: currentUser.name,
-            bio: currentUser.bio
-        }));
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'update_profile',
+                userId: currentUser.id,
+                name: currentUser.name,
+                bio: currentUser.bio
+            }));
+        }
         
-        // Обновляем аватар если изменился
-        if (newAvatar !== currentUser.avatar || newAvatarType !== currentUser.avatarType) {
+        if ((newAvatar !== currentUser.avatar || newAvatarType !== currentUser.avatarType) && ws && ws.readyState === WebSocket.OPEN) {
             currentUser.avatar = newAvatar;
             currentUser.avatarType = newAvatarType;
             ws.send(JSON.stringify({
@@ -944,6 +1001,12 @@
                 avatar: currentUser.avatar,
                 avatarType: currentUser.avatarType
             }));
+            localStorage.setItem('userData', JSON.stringify({
+                name: currentUser.name,
+                avatar: currentUser.avatar,
+                avatarType: currentUser.avatarType,
+                bio: currentUser.bio
+            }));
         }
         
         updateAvatarDisplay('myAvatar', currentUser.avatar, currentUser.avatarType);
@@ -951,6 +1014,13 @@
         
         closeModal();
         showToast('✅ Профиль обновлён');
+        
+        if (currentChatId) {
+            const user = allUsers.find(u => u.id === currentChatId);
+            if (user) {
+                document.getElementById('chatName').textContent = user.name;
+            }
+        }
     }
     
     function openProfile() {
