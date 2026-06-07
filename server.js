@@ -27,7 +27,6 @@ async function initDB() {
                 name VARCHAR(100) NOT NULL,
                 avatar TEXT DEFAULT '😊',
                 avatar_type VARCHAR(20) DEFAULT 'emoji',
-                bio TEXT,
                 online BOOLEAN DEFAULT FALSE,
                 last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -53,14 +52,11 @@ async function initDB() {
 
 initDB();
 
-// Хранилище активных соединений
 const activeUsers = new Map();
 
-// Отправка списка пользователей
 async function broadcastUserList() {
     try {
-        const result = await pool.query('SELECT id, name, avatar, avatar_type, online, last_seen FROM users ORDER BY name');
-        
+        const result = await pool.query('SELECT id, name, avatar, avatar_type, online FROM users ORDER BY name');
         for (let [userId, ws] of activeUsers) {
             if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
@@ -71,36 +67,20 @@ async function broadcastUserList() {
             }
         }
     } catch(e) {
-        console.error('Ошибка отправки списка:', e.message);
+        console.error('Ошибка:', e.message);
     }
 }
 
-// Отправка истории сообщений
 async function sendHistory(ws, userId) {
     try {
         const result = await pool.query(
-            `SELECT * FROM messages 
-             WHERE from_user = $1 OR to_user = $1 
-             ORDER BY created_at ASC`,
+            `SELECT * FROM messages WHERE from_user = $1 OR to_user = $1 ORDER BY created_at ASC`,
             [userId]
         );
-        
-        ws.send(JSON.stringify({
-            type: 'chat_history',
-            messages: result.rows,
-            userId: userId
-        }));
+        ws.send(JSON.stringify({ type: 'chat_history', messages: result.rows }));
     } catch(e) {
-        console.error('Ошибка отправки истории:', e.message);
+        console.error('Ошибка:', e.message);
     }
-}
-
-// Обновление профиля
-async function updateUserProfile(userId, name, avatar, avatarType) {
-    await pool.query(
-        'UPDATE users SET name = $1, avatar = $2, avatar_type = $3, last_seen = NOW() WHERE id = $4',
-        [name, avatar, avatarType, userId]
-    );
 }
 
 wss.on('connection', (ws) => {
@@ -110,55 +90,45 @@ wss.on('connection', (ws) => {
         try {
             const msg = JSON.parse(data);
             
-            // РЕГИСТРАЦИЯ
             if (msg.type === 'register') {
                 userId = msg.userId;
                 
                 const exists = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
-                
                 if (exists.rows.length === 0) {
                     await pool.query(
                         'INSERT INTO users (id, name, avatar, avatar_type, online) VALUES ($1, $2, $3, $4, $5)',
                         [userId, msg.name, msg.avatar || '😊', msg.avatarType || 'emoji', true]
                     );
-                    console.log(`✅ Новый пользователь: ${msg.name}`);
                 } else {
                     await pool.query('UPDATE users SET online = TRUE, last_seen = NOW() WHERE id = $1', [userId]);
-                    console.log(`✅ Пользователь вернулся: ${exists.rows[0].name}`);
                 }
                 
                 activeUsers.set(userId, ws);
-                
-                ws.send(JSON.stringify({ 
-                    type: 'registered', 
-                    userId: userId,
-                    userData: exists.rows[0] || { name: msg.name, avatar: msg.avatar }
-                }));
-                
+                ws.send(JSON.stringify({ type: 'registered', userId: userId }));
                 await sendHistory(ws, userId);
                 await broadcastUserList();
             }
             
-            // ОБНОВЛЕНИЕ ПРОФИЛЯ
             if (msg.type === 'update_profile') {
-                await updateUserProfile(msg.userId, msg.name, msg.avatar, msg.avatarType);
+                await pool.query(
+                    'UPDATE users SET name = $1, avatar = $2, avatar_type = $3 WHERE id = $4',
+                    [msg.name, msg.avatar, msg.avatarType, msg.userId]
+                );
                 await broadcastUserList();
-                ws.send(JSON.stringify({ type: 'profile_updated', success: true }));
-                console.log(`📝 Профиль обновлён: ${msg.name}`);
+                ws.send(JSON.stringify({ type: 'profile_updated' }));
             }
             
-            // ПОЛУЧИТЬ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ
             if (msg.type === 'get_users') {
                 await broadcastUserList();
             }
             
-            // ПОИСК ПОЛЬЗОВАТЕЛЕЙ ПО ИМЕНИ
+            // ПОИСК ПОЛЬЗОВАТЕЛЕЙ - ИСПРАВЛЕНО
             if (msg.type === 'search_users') {
-                const searchTerm = `%${msg.query}%`;
+                const searchTerm = `%${msg.query.toLowerCase()}%`;
                 const result = await pool.query(
                     `SELECT id, name, avatar, avatar_type, online FROM users 
-                     WHERE (name ILIKE $1 OR id ILIKE $1) AND id != $2
-                     LIMIT 30`,
+                     WHERE LOWER(name) LIKE $1 AND id != $2
+                     LIMIT 50`,
                     [searchTerm, msg.userId]
                 );
                 ws.send(JSON.stringify({
@@ -166,13 +136,11 @@ wss.on('connection', (ws) => {
                     users: result.rows,
                     query: msg.query
                 }));
-                console.log(`🔍 Поиск: "${msg.query}" -> найдено ${result.rows.length} пользователей`);
+                console.log(`🔍 Поиск: "${msg.query}" -> ${result.rows.length} результатов`);
             }
             
-            // ОТПРАВКА СООБЩЕНИЯ
             if (msg.type === 'message') {
                 const messageId = Date.now();
-                
                 await pool.query(
                     'INSERT INTO messages (id, from_user, to_user, text, time) VALUES ($1, $2, $3, $4, $5)',
                     [messageId, msg.from, msg.to, msg.text, msg.time]
@@ -187,14 +155,7 @@ wss.on('connection', (ws) => {
                         fromAvatar: msg.fromAvatar
                     }));
                 }
-                
-                ws.send(JSON.stringify({
-                    type: 'message_sent',
-                    messageId: messageId,
-                    to: msg.to,
-                    text: msg.text,
-                    time: msg.time
-                }));
+                ws.send(JSON.stringify({ type: 'message_sent', messageId: messageId }));
             }
             
         } catch(e) {
@@ -204,17 +165,14 @@ wss.on('connection', (ws) => {
     
     ws.on('close', async () => {
         if (userId) {
-            await pool.query('UPDATE users SET online = FALSE, last_seen = NOW() WHERE id = $1', [userId]);
+            await pool.query('UPDATE users SET online = FALSE WHERE id = $1', [userId]);
             activeUsers.delete(userId);
             await broadcastUserList();
-            console.log(`👋 Пользователь отключился`);
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 СЕРВЕР ЗАПУЩЕН на порту ${PORT}`);
-    console.log(`💾 Сохранение в PostgreSQL`);
-    console.log(`👥 Активных пользователей: ${activeUsers.size}\n`);
+    console.log(`\n🚀 СЕРВЕР ЗАПУЩЕН на порту ${PORT}\n`);
 });
