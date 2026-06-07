@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#17212b">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>✨ Мессенджер ✨</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -31,12 +30,7 @@
             width: 100%;
         }
 
-        .app { 
-            width: 100%; 
-            height: 100vh; 
-            display: flex; 
-            position: relative;
-        }
+        .app { width: 100%; height: 100vh; display: flex; position: relative; }
 
         /* Боковая панель */
         .dialogs {
@@ -74,14 +68,21 @@
 
         .profile-left { display: flex; align-items: center; gap: 12px; }
         .avatar {
-            width: 44px; height: 44px;
+            width: 48px; height: 48px;
             background: linear-gradient(135deg, var(--accent), #2b5278);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 22px;
+            font-size: 24px;
             cursor: pointer;
+            object-fit: cover;
+            overflow: hidden;
+        }
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         .profile-name { font-weight: 600; color: var(--text); font-size: 17px; }
         .profile-status { font-size: 11px; color: var(--text-secondary); }
@@ -101,7 +102,6 @@
             color: var(--text); font-size: 16px;
             outline: none;
         }
-        .search-input:focus { border-color: var(--accent); }
 
         .dialogs-list {
             flex: 1;
@@ -130,6 +130,12 @@
             margin-right: 12px;
             position: relative;
             flex-shrink: 0;
+            overflow: hidden;
+        }
+        .dialog-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         .online-dot {
             position: absolute;
@@ -149,7 +155,7 @@
             text-overflow: ellipsis;
         }
 
-        /* Чат - ОСНОВНАЯ ОБЛАСТЬ */
+        /* Чат */
         .chat-area {
             flex: 1;
             display: flex;
@@ -186,6 +192,12 @@
             justify-content: center;
             font-size: 22px;
             flex-shrink: 0;
+            overflow: hidden;
+        }
+        .chat-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         .chat-info { flex: 1; min-width: 0; }
         .chat-name { font-weight: 600; color: var(--text); font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -215,7 +227,7 @@
         .message-text { font-size: 15px; line-height: 1.4; word-wrap: break-word; }
         .message-time { font-size: 10px; margin-top: 4px; opacity: 0.7; text-align: right; }
 
-        /* Панель ввода - СПЕЦИАЛЬНО ДЛЯ IPHONE */
+        /* Панель ввода */
         .input-panel {
             background: var(--header);
             padding: 10px 16px;
@@ -225,7 +237,6 @@
             align-items: center;
             border-top: 1px solid var(--divider);
             flex-shrink: 0;
-            position: relative;
         }
         .input-field {
             flex: 1;
@@ -243,10 +254,6 @@
             color: var(--text-secondary);
             font-size: 15px;
         }
-        .input-field:focus {
-            outline: none;
-            background: var(--bg);
-        }
         .send-btn {
             background: var(--accent);
             border: none;
@@ -261,12 +268,91 @@
             justify-content: center;
             flex-shrink: 0;
         }
-        .send-btn:active {
-            transform: scale(0.95);
-        }
         .empty-state { text-align: center; color: var(--text-secondary); margin-top: 50px; padding: 20px; }
 
-        /* Уведомления */
+        /* Модальное окно профиля */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: var(--header);
+            padding: 24px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 340px;
+        }
+        .modal-content h3 { color: var(--text); margin-bottom: 16px; font-size: 18px; }
+        .modal-content input {
+            width: 100%; padding: 12px;
+            margin: 8px 0;
+            background: var(--bg);
+            border: none;
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 16px;
+        }
+        
+        /* Выбор аватарки */
+        .avatar-options {
+            display: flex;
+            gap: 12px;
+            margin: 12px 0;
+            flex-wrap: wrap;
+        }
+        .avatar-option {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            overflow: hidden;
+        }
+        .avatar-option.selected {
+            border-color: var(--accent);
+            transform: scale(1.05);
+        }
+        .avatar-option img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .photo-upload {
+            margin: 12px 0;
+        }
+        .photo-upload label {
+            background: var(--accent);
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+            display: block;
+            text-align: center;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .photo-upload input {
+            display: none;
+        }
+        
+        .modal-buttons { display: flex; gap: 12px; margin-top: 20px; }
+        .modal-buttons button { flex: 1; padding: 12px; border: none; border-radius: 12px; cursor: pointer; font-weight: 500; font-size: 14px; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-secondary { background: var(--bg); color: var(--text-secondary); }
+
         .toast {
             position: fixed;
             bottom: 100px;
@@ -286,40 +372,6 @@
         }
         @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
-        /* Модальное окно */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(4px);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal-content {
-            background: var(--header);
-            padding: 24px;
-            border-radius: 20px;
-            width: 90%;
-            max-width: 320px;
-        }
-        .modal-content h3 { color: var(--text); margin-bottom: 16px; font-size: 18px; }
-        .modal-content input {
-            width: 100%; padding: 12px;
-            margin: 8px 0;
-            background: var(--bg);
-            border: none;
-            border-radius: 12px;
-            color: var(--text);
-            font-size: 16px;
-        }
-        .modal-buttons { display: flex; gap: 12px; margin-top: 20px; }
-        .modal-buttons button { flex: 1; padding: 12px; border: none; border-radius: 12px; cursor: pointer; font-weight: 500; font-size: 14px; }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-secondary { background: var(--bg); color: var(--text-secondary); }
-
         @media (min-width: 768px) {
             .dialogs { transform: translateX(0); position: relative; width: 360px; }
             .menu-toggle { display: none; }
@@ -328,20 +380,6 @@
         @media (max-width: 767px) {
             .dialogs { width: 85%; max-width: 320px; }
             .message-bubble { max-width: 85%; }
-            .input-field { padding: 12px 16px; font-size: 16px; }
-            .input-panel { padding: 10px 12px; }
-        }
-        
-        /* Специально для iPhone с клавиатурой */
-        @supports (padding: max(0px)) {
-            .input-panel {
-                padding-bottom: max(10px, env(safe-area-inset-bottom));
-            }
-        }
-        
-        /* Фикс для скролла на iPhone */
-        .messages-area {
-            -webkit-overflow-scrolling: touch;
         }
     </style>
 </head>
@@ -386,9 +424,25 @@
 
 <div class="modal" id="profileModal">
     <div class="modal-content">
-        <h3>📝 Настройки</h3>
+        <h3>📝 Редактировать профиль</h3>
         <input type="text" id="editName" placeholder="Ваше имя">
-        <input type="text" id="editAvatar" placeholder="Аватар (эмодзи)" maxlength="2">
+        
+        <div class="avatar-options" id="avatarOptions">
+            <div class="avatar-option" data-avatar="😊" data-type="emoji">😊</div>
+            <div class="avatar-option" data-avatar="😎" data-type="emoji">😎</div>
+            <div class="avatar-option" data-avatar="🤓" data-type="emoji">🤓</div>
+            <div class="avatar-option" data-avatar="🥳" data-type="emoji">🥳</div>
+            <div class="avatar-option" data-avatar="😺" data-type="emoji">😺</div>
+            <div class="avatar-option" data-avatar="🦊" data-type="emoji">🦊</div>
+            <div class="avatar-option" data-avatar="🐱" data-type="emoji">🐱</div>
+            <div class="avatar-option" data-avatar="🐶" data-type="emoji">🐶</div>
+        </div>
+        
+        <div class="photo-upload">
+            <label for="photoUpload">📷 Загрузить фото</label>
+            <input type="file" id="photoUpload" accept="image/*" onchange="uploadPhoto(this)">
+        </div>
+        
         <div class="modal-buttons">
             <button class="btn-primary" onclick="saveProfile()">Сохранить</button>
             <button class="btn-secondary" onclick="closeModal()">Отмена</button>
@@ -398,23 +452,24 @@
 
 <script>
     let ws = null;
-    let currentUser = { id: '', name: '', avatar: '😊' };
+    let currentUser = { id: '', name: '', avatar: '😊', avatarType: 'emoji' };
     let users = [];
     let messages = {};
     let currentChatId = null;
     let searchTimeout = null;
+    let selectedAvatar = null;
+    let selectedAvatarType = 'emoji';
     
-    // Функция для скролла вниз при открытии клавиатуры на iPhone
-    function scrollToBottom() {
-        const messagesArea = document.getElementById('messagesArea');
-        if (messagesArea) {
-            setTimeout(() => {
-                messagesArea.scrollTop = messagesArea.scrollHeight;
-            }, 100);
+    // Функция для отображения аватара
+    function renderAvatar(avatar, type, size = '48px') {
+        if (type === 'photo' && avatar && avatar.startsWith('data:image')) {
+            return `<img src="${avatar}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
         }
+        return avatar;
     }
     
     function init() {
+        // ФИКС: Используем localStorage для хранения ID пользователя
         let savedId = localStorage.getItem('userId');
         if (!savedId) {
             savedId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
@@ -427,16 +482,23 @@
             const data = JSON.parse(savedData);
             currentUser.name = data.name;
             currentUser.avatar = data.avatar;
+            currentUser.avatarType = data.avatarType || 'emoji';
         } else {
             currentUser.name = 'User_' + Math.floor(Math.random() * 1000);
-            currentUser.avatar = ['😊', '😎', '🤓', '🥳'][Math.floor(Math.random() * 4)];
-            localStorage.setItem('userData', JSON.stringify({ name: currentUser.name, avatar: currentUser.avatar }));
+            currentUser.avatar = '😊';
+            currentUser.avatarType = 'emoji';
+            localStorage.setItem('userData', JSON.stringify({ 
+                name: currentUser.name, 
+                avatar: currentUser.avatar,
+                avatarType: currentUser.avatarType
+            }));
         }
         
+        updateAvatarDisplay('myAvatar', currentUser.avatar, currentUser.avatarType);
         document.getElementById('myName').textContent = currentUser.name;
-        document.getElementById('myAvatar').textContent = currentUser.avatar;
         connect();
         
+        // Закрытие панели
         document.addEventListener('click', function(e) {
             const dialogs = document.getElementById('dialogs');
             if (window.innerWidth <= 768 && dialogs.classList.contains('open')) {
@@ -446,13 +508,46 @@
             }
         });
         
-        // Обработка фокуса на поле ввода на iPhone
-        const messageInput = document.getElementById('messageInput');
-        messageInput.addEventListener('focus', function() {
-            setTimeout(() => {
-                scrollToBottom();
-            }, 300);
+        // Выбор аватарки
+        document.querySelectorAll('.avatar-option').forEach(opt => {
+            opt.onclick = () => {
+                document.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+                selectedAvatar = opt.dataset.avatar;
+                selectedAvatarType = opt.dataset.type;
+            };
         });
+    }
+    
+    function updateAvatarDisplay(elementId, avatar, type) {
+        const element = document.getElementById(elementId);
+        if (type === 'photo' && avatar && avatar.startsWith('data:image')) {
+            element.innerHTML = `<img src="${avatar}">`;
+        } else {
+            element.innerHTML = avatar;
+        }
+    }
+    
+    function uploadPhoto(input) {
+        const file = input.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                selectedAvatar = e.target.result;
+                selectedAvatarType = 'photo';
+                // Визуально показываем выбранное фото
+                document.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
+                const preview = document.createElement('div');
+                preview.className = 'avatar-option selected';
+                preview.innerHTML = `<img src="${selectedAvatar}">`;
+                preview.onclick = () => {
+                    document.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
+                    preview.classList.add('selected');
+                };
+                document.getElementById('avatarOptions').appendChild(preview);
+            };
+            reader.readAsDataURL(file);
+        }
     }
     
     function connect() {
@@ -464,7 +559,8 @@
                 type: 'register',
                 userId: currentUser.id,
                 name: currentUser.name,
-                avatar: currentUser.avatar
+                avatar: currentUser.avatar,
+                avatarType: currentUser.avatarType
             }));
         };
         
@@ -474,6 +570,20 @@
             if (data.type === 'users_list') {
                 users = data.users.filter(u => u.id !== currentUser.id);
                 renderUsers();
+            }
+            
+            if (data.type === 'registered') {
+                if (data.userData) {
+                    currentUser.name = data.userData.name;
+                    currentUser.avatar = data.userData.avatar;
+                    currentUser.avatarType = data.userData.avatar_type || 'emoji';
+                    updateAvatarDisplay('myAvatar', currentUser.avatar, currentUser.avatarType);
+                    document.getElementById('myName').textContent = currentUser.name;
+                }
+            }
+            
+            if (data.type === 'profile_updated') {
+                showToast('✅ Профиль обновлён');
             }
             
             if (data.type === 'chat_history') {
@@ -511,19 +621,6 @@
                 }
                 renderUsers();
             }
-            
-            if (data.type === 'message_sent') {
-                if (currentChatId === data.to) {
-                    const msgs = messages[currentChatId];
-                    if (msgs && msgs.length > 0) {
-                        const last = msgs[msgs.length - 1];
-                        if (last.text === data.text) {
-                            last.time = data.time;
-                            renderMessages();
-                        }
-                    }
-                }
-            }
         };
         
         ws.onclose = () => {
@@ -559,10 +656,16 @@
         container.innerHTML = users.map(user => {
             const userMessages = messages[user.id] || [];
             const lastMsg = userMessages[userMessages.length - 1];
+            let avatarHtml = '';
+            if (user.avatar_type === 'photo' && user.avatar && user.avatar.startsWith('data:image')) {
+                avatarHtml = `<img src="${user.avatar}">`;
+            } else {
+                avatarHtml = user.avatar || '😊';
+            }
             return `
-                <div class="dialog-item" onclick="openChat('${user.id}', '${escapeHtml(user.name)}', '${user.avatar}')">
+                <div class="dialog-item" onclick="openChat('${user.id}', '${escapeHtml(user.name)}', '${user.avatar}', '${user.avatar_type || 'emoji'}')">
                     <div class="dialog-avatar">
-                        ${user.avatar}
+                        ${avatarHtml}
                         ${user.online ? '<div class="online-dot"></div>' : ''}
                     </div>
                     <div class="dialog-info">
@@ -577,10 +680,16 @@
         }).join('');
     }
     
-    function openChat(userId, name, avatar) {
+    function openChat(userId, name, avatar, avatarType) {
         currentChatId = userId;
         document.getElementById('chatName').textContent = name;
-        document.getElementById('chatAvatar').textContent = avatar;
+        
+        if (avatarType === 'photo' && avatar && avatar.startsWith('data:image')) {
+            document.getElementById('chatAvatar').innerHTML = `<img src="${avatar}">`;
+        } else {
+            document.getElementById('chatAvatar').innerHTML = avatar || '💬';
+        }
+        
         document.getElementById('chatStatus').innerHTML = 'онлайн';
         
         if (window.innerWidth <= 768) {
@@ -589,16 +698,14 @@
         
         renderMessages();
         setTimeout(() => {
-            const input = document.getElementById('messageInput');
-            input.focus();
-            scrollToBottom();
+            document.getElementById('messageInput').focus();
         }, 300);
     }
     
     function closeChat() {
         currentChatId = null;
         document.getElementById('chatName').textContent = 'Мессенджер';
-        document.getElementById('chatAvatar').textContent = '💬';
+        document.getElementById('chatAvatar').innerHTML = '💬';
         document.getElementById('chatStatus').innerHTML = 'Выберите чат';
         document.getElementById('messagesArea').innerHTML = '<div class="empty-state">✨ Нажмите на пользователя<br>чтобы начать общение</div>';
     }
@@ -628,15 +735,11 @@
         const input = document.getElementById('messageInput');
         const text = input.value.trim();
         
-        if (!text) {
-            return;
-        }
-        
+        if (!text) return;
         if (!currentChatId) {
             showToast('❌ Выберите собеседника');
             return;
         }
-        
         if (!ws || ws.readyState !== WebSocket.OPEN) {
             showToast('❌ Нет соединения с сервером');
             return;
@@ -657,13 +760,13 @@
             to: currentChatId,
             text: text,
             time: time,
-            fromName: currentUser.name
+            fromName: currentUser.name,
+            fromAvatar: currentUser.avatar
         }));
         
         renderMessages();
         renderUsers();
         input.value = '';
-        scrollToBottom();
     }
     
     function handleEnter(e) {
@@ -675,24 +778,53 @@
     
     function openProfile() {
         document.getElementById('editName').value = currentUser.name;
-        document.getElementById('editAvatar').value = currentUser.avatar;
         document.getElementById('profileModal').style.display = 'flex';
+        
+        // Выбираем текущую аватарку
+        document.querySelectorAll('.avatar-option').forEach(opt => {
+            opt.classList.remove('selected');
+            if ((opt.dataset.avatar === currentUser.avatar && currentUser.avatarType === 'emoji') ||
+                (currentUser.avatarType === 'photo' && opt.innerHTML.includes(currentUser.avatar))) {
+                opt.classList.add('selected');
+            }
+        });
+        selectedAvatar = currentUser.avatar;
+        selectedAvatarType = currentUser.avatarType;
     }
     
     function saveProfile() {
         const name = document.getElementById('editName').value.trim();
-        const avatar = document.getElementById('editAvatar').value.trim();
-        if (name) currentUser.name = name;
-        if (avatar) currentUser.avatar = avatar;
+        if (!name) {
+            showToast('❌ Введите имя');
+            return;
+        }
         
-        localStorage.setItem('userData', JSON.stringify({ name: currentUser.name, avatar: currentUser.avatar }));
+        const newAvatar = selectedAvatar || currentUser.avatar;
+        const newAvatarType = selectedAvatarType || currentUser.avatarType;
+        
+        currentUser.name = name;
+        currentUser.avatar = newAvatar;
+        currentUser.avatarType = newAvatarType;
+        
+        localStorage.setItem('userData', JSON.stringify({ 
+            name: currentUser.name, 
+            avatar: currentUser.avatar,
+            avatarType: currentUser.avatarType
+        }));
+        
+        updateAvatarDisplay('myAvatar', currentUser.avatar, currentUser.avatarType);
         document.getElementById('myName').textContent = currentUser.name;
-        document.getElementById('myAvatar').textContent = currentUser.avatar;
+        
+        ws.send(JSON.stringify({
+            type: 'update_profile',
+            userId: currentUser.id,
+            name: currentUser.name,
+            avatar: currentUser.avatar,
+            avatarType: currentUser.avatarType
+        }));
+        
         closeModal();
         showToast('✅ Профиль обновлён');
-        
-        if (ws) ws.close();
-        setTimeout(() => connect(), 500);
     }
     
     function toggleDialogs() { 
