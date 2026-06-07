@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#17212b">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>✨ Мессенджер ✨</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -30,7 +31,12 @@
             width: 100%;
         }
 
-        .app { width: 100%; height: 100vh; display: flex; position: relative; }
+        .app { 
+            width: 100%; 
+            height: 100vh; 
+            display: flex; 
+            position: relative;
+        }
 
         /* Боковая панель */
         .dialogs {
@@ -150,6 +156,7 @@
             flex-direction: column;
             background: var(--bg);
             width: 100%;
+            height: 100vh;
         }
 
         .chat-header {
@@ -208,16 +215,17 @@
         .message-text { font-size: 15px; line-height: 1.4; word-wrap: break-word; }
         .message-time { font-size: 10px; margin-top: 4px; opacity: 0.7; text-align: right; }
 
-        /* Панель ввода - ИСПРАВЛЕНО ДЛЯ ТЕЛЕФОНОВ */
+        /* Панель ввода - СПЕЦИАЛЬНО ДЛЯ IPHONE */
         .input-panel {
             background: var(--header);
-            padding: 12px 16px;
-            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            padding: 10px 16px;
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
             display: flex;
             gap: 12px;
             align-items: center;
             border-top: 1px solid var(--divider);
             flex-shrink: 0;
+            position: relative;
         }
         .input-field {
             flex: 1;
@@ -321,6 +329,19 @@
             .dialogs { width: 85%; max-width: 320px; }
             .message-bubble { max-width: 85%; }
             .input-field { padding: 12px 16px; font-size: 16px; }
+            .input-panel { padding: 10px 12px; }
+        }
+        
+        /* Специально для iPhone с клавиатурой */
+        @supports (padding: max(0px)) {
+            .input-panel {
+                padding-bottom: max(10px, env(safe-area-inset-bottom));
+            }
+        }
+        
+        /* Фикс для скролла на iPhone */
+        .messages-area {
+            -webkit-overflow-scrolling: touch;
         }
     </style>
 </head>
@@ -357,7 +378,7 @@
         </div>
         <div class="messages-area" id="messagesArea"><div class="empty-state">✨ Нажмите на пользователя<br>чтобы начать общение</div></div>
         <div class="input-panel">
-            <input type="text" class="input-field" id="messageInput" placeholder="📝 Напишите сообщение..." onkeypress="handleEnter(event)">
+            <input type="text" class="input-field" id="messageInput" placeholder="📝 Сообщение..." onkeypress="handleEnter(event)">
             <button class="send-btn" onclick="sendMessage()">📤</button>
         </div>
     </div>
@@ -382,6 +403,16 @@
     let messages = {};
     let currentChatId = null;
     let searchTimeout = null;
+    
+    // Функция для скролла вниз при открытии клавиатуры на iPhone
+    function scrollToBottom() {
+        const messagesArea = document.getElementById('messagesArea');
+        if (messagesArea) {
+            setTimeout(() => {
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            }, 100);
+        }
+    }
     
     function init() {
         let savedId = localStorage.getItem('userId');
@@ -413,6 +444,14 @@
                     dialogs.classList.remove('open');
                 }
             }
+        });
+        
+        // Обработка фокуса на поле ввода на iPhone
+        const messageInput = document.getElementById('messageInput');
+        messageInput.addEventListener('focus', function() {
+            setTimeout(() => {
+                scrollToBottom();
+            }, 300);
         });
     }
     
@@ -450,7 +489,6 @@
                 });
                 if (currentChatId) renderMessages();
                 renderUsers();
-                console.log('📜 История загружена');
             }
             
             if (data.type === 'search_results') {
@@ -551,7 +589,9 @@
         
         renderMessages();
         setTimeout(() => {
-            document.getElementById('messageInput').focus();
+            const input = document.getElementById('messageInput');
+            input.focus();
+            scrollToBottom();
         }, 300);
     }
     
@@ -623,7 +663,7 @@
         renderMessages();
         renderUsers();
         input.value = '';
-        input.focus();
+        scrollToBottom();
     }
     
     function handleEnter(e) {
