@@ -18,11 +18,17 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// СОЗДАНИЕ ТАБЛИЦ
+// ПЕРЕСОЗДАНИЕ ТАБЛИЦ
 async function initDB() {
     try {
+        // Удаляем старые таблицы если есть
+        await pool.query('DROP TABLE IF EXISTS friends CASCADE');
+        await pool.query('DROP TABLE IF EXISTS messages CASCADE');
+        await pool.query('DROP TABLE IF EXISTS users CASCADE');
+        
+        // Создаём таблицу users
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS users (
+            CREATE TABLE users (
                 id VARCHAR(100) PRIMARY KEY,
                 name VARCHAR(100) NOT NULL,
                 avatar TEXT DEFAULT '😊',
@@ -34,8 +40,9 @@ async function initDB() {
             )
         `);
         
+        // Создаём таблицу messages
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS messages (
+            CREATE TABLE messages (
                 id BIGINT PRIMARY KEY,
                 from_user VARCHAR(100) REFERENCES users(id) ON DELETE CASCADE,
                 to_user VARCHAR(100) REFERENCES users(id) ON DELETE CASCADE,
@@ -45,8 +52,9 @@ async function initDB() {
             )
         `);
         
+        // Создаём таблицу friends
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS friends (
+            CREATE TABLE friends (
                 user_id VARCHAR(100) REFERENCES users(id) ON DELETE CASCADE,
                 friend_id VARCHAR(100) REFERENCES users(id) ON DELETE CASCADE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -284,7 +292,7 @@ wss.on('connection', (ws) => {
     });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Сервер на порту ${PORT}`);
 });
