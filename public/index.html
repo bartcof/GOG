@@ -4,12 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#17212b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>✨ Мессенджер</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         :root {
@@ -22,6 +25,7 @@
             --accent: #50a6e5;
             --divider: #2c3a47;
             --success: #4cd137;
+            --danger: #e74c3c;
         }
 
         body {
@@ -30,17 +34,20 @@
             height: 100vh;
             overflow: hidden;
             position: fixed;
-            width: 100%;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
         }
 
         .app {
             display: flex;
-            height: 100vh;
+            height: 100%;
             width: 100%;
             position: relative;
         }
 
-        /* Боковая панель */
+        /* ========== САЙДБАР ========== */
         .sidebar {
             width: 360px;
             background: var(--bg);
@@ -49,12 +56,14 @@
             flex-direction: column;
             position: relative;
             z-index: 10;
+            height: 100%;
         }
 
         .sidebar-header {
             background: var(--header);
             padding: 16px;
             padding-top: calc(16px + env(safe-area-inset-top));
+            flex-shrink: 0;
         }
 
         .profile-card {
@@ -76,6 +85,11 @@
             cursor: pointer;
             overflow: hidden;
             flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+
+        .avatar:active {
+            transform: scale(0.95);
         }
 
         .avatar img {
@@ -103,6 +117,11 @@
             padding: 8px;
             border-radius: 50%;
             flex-shrink: 0;
+            transition: background 0.2s;
+        }
+
+        .icon-btn:active {
+            background: rgba(80, 166, 229, 0.2);
         }
 
         .search-input {
@@ -229,16 +248,21 @@
             font-size: 12px;
             cursor: pointer;
             flex-shrink: 0;
+            transition: opacity 0.2s;
         }
 
-        /* Чат */
+        .friend-btn:active {
+            opacity: 0.7;
+        }
+
+        /* ========== ЧАТ ========== */
         .chat-area {
             flex: 1;
             display: flex;
             flex-direction: column;
             background: var(--bg);
+            height: 100%;
             position: relative;
-            height: 100vh;
         }
 
         .chat-header {
@@ -355,7 +379,7 @@
             text-align: right;
         }
 
-        /* Панель ввода - FIX ДЛЯ ANDROID */
+        /* ========== ПАНЕЛЬ ВВОДА - РАБОТАЕТ НА ВСЕХ УСТРОЙСТВАХ ========== */
         .input-panel {
             background: var(--header);
             padding: 10px 12px;
@@ -365,7 +389,6 @@
             align-items: center;
             border-top: 1px solid var(--divider);
             flex-shrink: 0;
-            position: relative;
         }
 
         .message-input {
@@ -378,7 +401,6 @@
             font-size: 16px;
             outline: none;
             min-height: 44px;
-            max-height: 120px;
         }
 
         .send-btn {
@@ -394,6 +416,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: transform 0.1s;
         }
 
         .send-btn:active {
@@ -407,7 +430,7 @@
             padding: 20px;
         }
 
-        /* Модальные окна */
+        /* ========== МОДАЛЬНЫЕ ОКНА ========== */
         .modal {
             display: none;
             position: fixed;
@@ -425,35 +448,62 @@
         .modal-content {
             background: var(--header);
             padding: 24px;
-            border-radius: 20px;
+            border-radius: 24px;
             width: 90%;
             max-width: 400px;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow-y: auto;
         }
 
         .modal-content h3 {
             color: var(--text);
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+            font-size: 20px;
+            text-align: center;
         }
 
         .modal-content input,
         .modal-content textarea {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             margin: 8px 0;
             background: var(--bg);
-            border: none;
-            border-radius: 12px;
+            border: 1px solid var(--divider);
+            border-radius: 14px;
             color: var(--text);
             font-size: 16px;
+            outline: none;
+        }
+
+        .modal-content input:focus,
+        .modal-content textarea:focus {
+            border-color: var(--accent);
+        }
+
+        /* Аватарки в модалке */
+        .avatar-section {
+            text-align: center;
+            margin: 16px 0;
+        }
+
+        .current-avatar-preview {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .current-avatar-preview .avatar {
+            width: 80px;
+            height: 80px;
+            font-size: 40px;
         }
 
         .avatar-options {
             display: flex;
             gap: 12px;
-            margin: 12px 0;
+            margin: 16px 0;
             flex-wrap: wrap;
+            justify-content: center;
         }
 
         .avatar-option {
@@ -485,11 +535,17 @@
         .upload-btn {
             background: var(--accent);
             color: white;
-            padding: 12px;
-            border-radius: 12px;
+            padding: 14px;
+            border-radius: 14px;
             text-align: center;
             cursor: pointer;
-            margin: 12px 0;
+            margin: 16px 0;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+
+        .upload-btn:active {
+            opacity: 0.8;
         }
 
         .modal-buttons {
@@ -500,41 +556,47 @@
 
         .btn-primary {
             flex: 1;
-            padding: 12px;
+            padding: 14px;
             background: var(--accent);
             color: white;
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             cursor: pointer;
+            font-weight: 500;
+            font-size: 16px;
         }
 
         .btn-secondary {
             flex: 1;
-            padding: 12px;
+            padding: 14px;
             background: var(--bg);
             color: var(--text-secondary);
-            border: none;
-            border-radius: 12px;
+            border: 1px solid var(--divider);
+            border-radius: 14px;
             cursor: pointer;
+            font-weight: 500;
+            font-size: 16px;
         }
 
         .invite-link {
             background: var(--bg);
-            padding: 12px;
-            border-radius: 12px;
-            margin: 12px 0;
+            padding: 14px;
+            border-radius: 14px;
+            margin: 16px 0;
             word-break: break-all;
-            font-size: 12px;
+            font-size: 13px;
             color: var(--accent);
+            text-align: center;
         }
 
         .toast {
             position: fixed;
-            bottom: 80px;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
-            background: var(--header);
-            color: var(--text);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            color: white;
             padding: 12px 24px;
             border-radius: 40px;
             font-size: 14px;
@@ -544,6 +606,7 @@
             max-width: 90%;
             white-space: normal;
             text-align: center;
+            pointer-events: none;
         }
 
         @keyframes slideUp {
@@ -595,6 +658,10 @@
             .message-bubble {
                 max-width: 85%;
             }
+            
+            .menu-toggle {
+                display: block;
+            }
         }
 
         @media (min-width: 769px) {
@@ -605,20 +672,15 @@
                 display: none;
             }
         }
-
-        /* Переменная для безопасной зоны */
-        .safe-bottom {
-            padding-bottom: env(safe-area-inset-bottom);
-        }
     </style>
 </head>
 <body>
 <div class="app">
-    <!-- Боковая панель -->
+    <!-- САЙДБАР -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="profile-card">
-                <div class="avatar" id="myAvatar" onclick="openProfile()">👤</div>
+                <div class="avatar" id="myAvatar" onclick="openProfileModal()">👤</div>
                 <div class="profile-name" id="myName">Загрузка...</div>
                 <button class="icon-btn" onclick="openSettings()">⚙️</button>
             </div>
@@ -634,7 +696,7 @@
         </div>
     </div>
 
-    <!-- Чат -->
+    <!-- ЧАТ -->
     <div class="chat-area" id="chatArea">
         <div class="chat-header">
             <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
@@ -649,28 +711,37 @@
             <div class="empty-state">✨ Нажмите на пользователя<br>чтобы начать общение</div>
         </div>
         <div class="input-panel" id="inputPanel">
-            <input type="text" class="message-input" id="messageInput" placeholder="📝 Напишите сообщение..." autocomplete="off" enterkeyhint="send">
+            <input type="text" class="message-input" id="messageInput" placeholder="📝 Сообщение..." autocomplete="off" enterkeyhint="send">
             <button class="send-btn" onclick="sendMessage()">📤</button>
         </div>
     </div>
 </div>
 
-<!-- Модальные окна -->
+<!-- МОДАЛКА РЕДАКТИРОВАНИЯ ПРОФИЛЯ -->
 <div class="modal" id="profileModal">
     <div class="modal-content">
         <h3>✏️ Редактировать профиль</h3>
-        <input type="text" id="editName" placeholder="Имя" autocomplete="off">
+        
+        <div class="avatar-section">
+            <div class="current-avatar-preview">
+                <div class="avatar" id="previewAvatar">😊</div>
+            </div>
+            <div class="avatar-options" id="avatarOptions"></div>
+            <div class="upload-btn" onclick="document.getElementById('photoInput').click()">📷 Загрузить фото</div>
+            <input type="file" id="photoInput" accept="image/*" style="display:none">
+        </div>
+        
+        <input type="text" id="editName" placeholder="Ваше имя" autocomplete="off">
         <textarea id="editBio" placeholder="О себе" rows="3"></textarea>
-        <div class="avatar-options" id="avatarOptions"></div>
-        <div class="upload-btn" onclick="document.getElementById('photoInput').click()">📷 Загрузить фото</div>
-        <input type="file" id="photoInput" accept="image/*" style="display:none">
+        
         <div class="modal-buttons">
-            <button class="btn-primary" onclick="saveProfile()">Сохранить</button>
+            <button class="btn-primary" onclick="saveProfile()">💾 Сохранить</button>
             <button class="btn-secondary" onclick="closeModal()">Отмена</button>
         </div>
     </div>
 </div>
 
+<!-- МОДАЛКА НАСТРОЕК -->
 <div class="modal" id="settingsModal">
     <div class="modal-content">
         <h3>⚙️ Настройки</h3>
@@ -680,6 +751,7 @@
     </div>
 </div>
 
+<!-- МОДАЛКА ССЫЛКИ -->
 <div class="modal" id="inviteModal">
     <div class="modal-content">
         <h3>🔗 Ваша ссылка-приглашение</h3>
@@ -703,22 +775,7 @@
     let selectedAvatarType = 'emoji';
     let inviteLink = '';
 
-    // Функция для скролла при открытии клавиатуры на Android
-    function handleKeyboardScroll() {
-        const messageInput = document.getElementById('messageInput');
-        const messagesArea = document.getElementById('messagesArea');
-        
-        if (messageInput) {
-            messageInput.addEventListener('focus', () => {
-                setTimeout(() => {
-                    if (messagesArea) {
-                        messagesArea.scrollTop = messagesArea.scrollHeight;
-                    }
-                }, 300);
-            });
-        }
-    }
-
+    // ИНИЦИАЛИЗАЦИЯ
     async function init() {
         const urlParams = new URLSearchParams(window.location.search);
         const refCode = urlParams.get('ref');
@@ -739,15 +796,18 @@
             currentUser.bio = data.bio || '';
         } else {
             currentUser.name = 'User_' + Math.floor(Math.random() * 1000);
+            currentUser.avatar = '😊';
+            currentUser.avatarType = 'emoji';
             localStorage.setItem('userData', JSON.stringify(currentUser));
         }
         
-        updateAvatar('myAvatar', currentUser.avatar, currentUser.avatarType);
+        updateAvatarElement('myAvatar', currentUser.avatar, currentUser.avatarType);
+        updateAvatarElement('previewAvatar', currentUser.avatar, currentUser.avatarType);
         document.getElementById('myName').textContent = currentUser.name;
         
         connect(refCode);
-        handleKeyboardScroll();
         
+        // Поиск
         document.getElementById('searchInput').addEventListener('input', (e) => {
             const query = e.target.value.trim();
             if (query.length === 0) {
@@ -764,6 +824,7 @@
             }
         });
         
+        // Загрузка фото
         document.getElementById('photoInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -772,17 +833,27 @@
                     selectedAvatar = ev.target.result;
                     selectedAvatarType = 'photo';
                     renderAvatarOptions();
+                    updateAvatarElement('previewAvatar', selectedAvatar, 'photo');
                 };
                 reader.readAsDataURL(file);
             }
         });
         
         renderAvatarOptions();
+        
+        // Фикс для iOS/Android - скролл при фокусе
+        const messageInput = document.getElementById('messageInput');
+        messageInput.addEventListener('focus', () => {
+            setTimeout(() => {
+                const messagesArea = document.getElementById('messagesArea');
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            }, 300);
+        });
     }
     
     function renderAvatarOptions() {
         const container = document.getElementById('avatarOptions');
-        const emojis = ['😊', '😎', '🤓', '🥳', '😺', '🦊', '🐱', '🐶', '🐼', '🐸'];
+        const emojis = ['😊', '😎', '🤓', '🥳', '😺', '🦊', '🐱', '🐶', '🐼', '🐸', '❤️', '🔥', '⭐', '🎉', '💪'];
         container.innerHTML = emojis.map(emoji => `
             <div class="avatar-option ${selectedAvatar === emoji && selectedAvatarType === 'emoji' ? 'selected' : ''}" 
                  onclick="selectAvatar('${emoji}', 'emoji')">${emoji}</div>
@@ -793,17 +864,17 @@
         selectedAvatar = avatar;
         selectedAvatarType = type;
         document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
-        event.target.classList.add('selected');
+        if (event && event.target) event.target.classList.add('selected');
+        updateAvatarElement('previewAvatar', selectedAvatar, selectedAvatarType);
     }
     
-    function updateAvatar(elementId, avatar, type) {
+    function updateAvatarElement(elementId, avatar, type) {
         const el = document.getElementById(elementId);
-        if (el) {
-            if (type === 'photo' && avatar && avatar.startsWith('data:')) {
-                el.innerHTML = `<img src="${avatar}">`;
-            } else {
-                el.innerHTML = avatar || '😊';
-            }
+        if (!el) return;
+        if (type === 'photo' && avatar && avatar.startsWith('data:')) {
+            el.innerHTML = `<img src="${avatar}">`;
+        } else {
+            el.innerHTML = avatar || '😊';
         }
     }
     
@@ -838,7 +909,8 @@
             currentUser.name = data.userData.name;
             currentUser.avatar = data.userData.avatar;
             currentUser.avatarType = data.userData.avatar_type;
-            updateAvatar('myAvatar', currentUser.avatar, currentUser.avatarType);
+            updateAvatarElement('myAvatar', currentUser.avatar, currentUser.avatarType);
+            updateAvatarElement('previewAvatar', currentUser.avatar, currentUser.avatarType);
             document.getElementById('myName').textContent = currentUser.name;
         }
         
@@ -860,6 +932,10 @@
         if (data.type === 'friend_added') {
             showToast('✅ Друг добавлен!');
             if (ws) ws.send(JSON.stringify({ type: 'get_friends', userId: currentUser.id }));
+        }
+        
+        if (data.type === 'friend_added_notify') {
+            showToast(`✨ ${data.friend.name} присоединился по вашей ссылке!`);
         }
         
         if (data.type === 'invite_link') {
@@ -913,7 +989,10 @@
         else users = allUsers;
         
         if (!users.length) {
-            container.innerHTML = '<div class="empty-state">👥 Нет пользователей</div>';
+            let emptyText = '👥 Нет пользователей';
+            if (currentTab === 'chats') emptyText = '💬 Нет чатов';
+            if (currentTab === 'friends') emptyText = '👫 Нет друзей';
+            container.innerHTML = `<div class="empty-state">${emptyText}</div>`;
             return;
         }
         
@@ -1009,7 +1088,6 @@
         renderUsers();
         input.value = '';
         
-        // Прокрутка вниз после отправки
         setTimeout(() => {
             const area = document.getElementById('messagesArea');
             area.scrollTop = area.scrollHeight;
@@ -1065,13 +1143,19 @@
             ws.send(JSON.stringify({ type: 'update_avatar', userId: currentUser.id, avatar: currentUser.avatar, avatarType: currentUser.avatarType }));
         }
         
-        updateAvatar('myAvatar', currentUser.avatar, currentUser.avatarType);
+        updateAvatarElement('myAvatar', currentUser.avatar, currentUser.avatarType);
         document.getElementById('myName').textContent = currentUser.name;
         closeModal();
         showToast('✅ Профиль сохранён');
+        
+        // Обновляем аватар в чате если открыт
+        if (currentChatId) {
+            const user = allUsers.find(u => u.id === currentChatId);
+            if (user) {
+                document.getElementById('chatName').textContent = user.name;
+            }
+        }
     }
-    
-    function openProfile() { openProfileModal(); }
     
     function openProfileModal() {
         document.getElementById('editName').value = currentUser.name;
@@ -1079,6 +1163,7 @@
         selectedAvatar = currentUser.avatar;
         selectedAvatarType = currentUser.avatarType;
         renderAvatarOptions();
+        updateAvatarElement('previewAvatar', selectedAvatar, selectedAvatarType);
         document.getElementById('profileModal').style.display = 'flex';
         closeModal();
     }
