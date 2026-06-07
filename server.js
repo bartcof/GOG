@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
 
 const app = express();
 const server = http.createServer(app);
@@ -10,42 +10,57 @@ const wss = new WebSocket.Server({ server });
 
 app.use(express.static('public'));
 
-// Файл для сохранения истории
-const DATA_FILE = './history.json';
+// PostgreSQL connection pool
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('sslmode=disable')
+        ? false
+        : { rejectUnauthorized: false }
+});
 
-// Загружаем сохранённую историю
-let savedHistory = { messages: {} };
-if (fs.existsSync(DATA_FILE)) {
-    try {
-        savedHistory = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-        console.log('📂 Загружена история из файла');
-    } catch(e) { console.log('Новый файл истории'); }
-}
+// Create tables and indexes on startup
+async function initDb() {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            avatar TEXT NOT NULL DEFAULT '😊',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
 
-const users = new Map();
-const messages = new Map();
-const onlineUsers = new Set();
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS messages (
+            id BIGINT PRIMARY KEY,
+            chat_id TEXT NOT NULL,
+            from_user TEXT NOT NULL,
+            to_user TEXT NOT NULL,
+            text TEXT NOT NULL,
+            time TEXT NOT NULL,
+            date TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
 
-// Загружаем сообщения из файла
-for (let [chatId, msgs] of Object.entries(savedHistory.messages || {})) {
-    messages.set(chatId, msgs);
-}
+    await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages (chat_id)
+    `);
 
-// Сохранение в файл
-function saveToFile() {
-    const toSave = { messages: {} };
-    for (let [chatId, msgs] of messages) {
-        toSave.messages[chatId] = msgs;
-    }
-    fs.writeFileSync(DATA_FILE, JSON.stringify(toSave, null, 2));
-    console.log('💾 История сохранена');
+    await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_messages_date ON messages (date)
+    `);
+
+    console.log('🗄️  База данных инициализирована');
 }
 
 function getChatId(user1, user2) {
     return [user1, user2].sort().join('_');
 }
 
-// Отправка списка пользователей
+// In-memory map of connected users (ws + metadata)
+const users = new Map();
+const onlineUsers = new Set();
+
+// Broadcast the full user list to every connected client
 function broadcastUsers() {
     const list = [];
     for (let [id, user] of users) {
@@ -56,7 +71,7 @@ function broadcastUsers() {
             online: onlineUsers.has(id)
         });
     }
-    
+
     for (let [id, user] of users) {
         if (user.ws && user.ws.readyState === WebSocket.OPEN) {
             user.ws.send(JSON.stringify({ type: 'users', users: list }));
@@ -66,15 +81,23 @@ function broadcastUsers() {
 
 wss.on('connection', (ws) => {
     let userId = null;
-    
-    ws.on('message', (data) => {
+
+    ws.on('message', async (data) => {
         try {
             const msg = JSON.parse(data);
-            
+
             // РЕГИСТРАЦИЯ
             if (msg.type === 'register') {
                 userId = msg.userId;
-                
+
+                // Upsert user into the database
+                await pool.query(
+                    `INSERT INTO users (id, name, avatar)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, avatar = EXCLUDED.avatar`,
+                    [userId, msg.name, msg.avatar || '😊']
+                );
+
                 users.set(userId, {
                     ws: ws,
                     name: msg.name,
@@ -82,40 +105,53 @@ wss.on('connection', (ws) => {
                     online: true
                 });
                 onlineUsers.add(userId);
-                
+
                 ws.send(JSON.stringify({ type: 'registered', userId: userId }));
-                
-                // ОТПРАВЛЯЕМ ВСЮ ИСТОРИЮ пользователю
-                const userChats = [];
-                for (let [chatId, msgs] of messages) {
-                    if (chatId.includes(userId)) {
-                        const otherId = chatId.replace(userId, '').replace('_', '');
-                        if (otherId && otherId !== userId) {
-                            userChats.push({
-                                withUser: otherId,
-                                messages: msgs
-                            });
-                        }
-                    }
+
+                // Load full message history for this user from the database
+                const historyResult = await pool.query(
+                    `SELECT * FROM messages
+                     WHERE from_user = $1 OR to_user = $1
+                     ORDER BY date ASC`,
+                    [userId]
+                );
+
+                // Group messages by chat partner
+                const chatMap = new Map();
+                for (const row of historyResult.rows) {
+                    const otherId = row.from_user === userId ? row.to_user : row.from_user;
+                    if (!chatMap.has(otherId)) chatMap.set(otherId, []);
+                    chatMap.get(otherId).push({
+                        id: Number(row.id),
+                        from: row.from_user,
+                        to: row.to_user,
+                        text: row.text,
+                        time: row.time,
+                        date: row.date
+                    });
                 }
-                
+
+                const userChats = [];
+                for (let [otherId, msgs] of chatMap) {
+                    userChats.push({ withUser: otherId, messages: msgs });
+                }
+
                 ws.send(JSON.stringify({
                     type: 'all_history',
                     chats: userChats
                 }));
-                
+
                 broadcastUsers();
             }
-            
+
             // ОТПРАВКА СООБЩЕНИЯ
             if (msg.type === 'message') {
                 const toUser = users.get(msg.to);
                 const fromUser = users.get(msg.from);
-                
+
                 if (toUser && fromUser) {
                     const chatId = getChatId(msg.from, msg.to);
-                    if (!messages.has(chatId)) messages.set(chatId, []);
-                    
+
                     const newMsg = {
                         id: Date.now(),
                         from: msg.from,
@@ -124,10 +160,15 @@ wss.on('connection', (ws) => {
                         time: msg.time,
                         date: new Date().toISOString()
                     };
-                    messages.get(chatId).push(newMsg);
-                    saveToFile(); // СОХРАНЯЕМ В ФАЙЛ
-                    
-                    // Отправляем получателю
+
+                    // Persist message to PostgreSQL
+                    await pool.query(
+                        `INSERT INTO messages (id, chat_id, from_user, to_user, text, time, date)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                        [newMsg.id, chatId, newMsg.from, newMsg.to, newMsg.text, newMsg.time, newMsg.date]
+                    );
+
+                    // Deliver to recipient if online
                     if (toUser.ws && toUser.ws.readyState === WebSocket.OPEN) {
                         toUser.ws.send(JSON.stringify({
                             type: 'new_message',
@@ -135,26 +176,40 @@ wss.on('connection', (ws) => {
                             fromName: fromUser.name
                         }));
                     }
-                    
-                    // Подтверждение отправителю
+
+                    // Confirm delivery to sender
                     ws.send(JSON.stringify({
                         type: 'message_sent',
                         message: newMsg
                     }));
                 }
             }
-            
+
             // ЗАПРОС ИСТОРИИ ЧАТА
             if (msg.type === 'get_chat_history') {
                 const chatId = getChatId(msg.userId, msg.withUserId);
-                const history = messages.get(chatId) || [];
+
+                const result = await pool.query(
+                    `SELECT * FROM messages WHERE chat_id = $1 ORDER BY date ASC`,
+                    [chatId]
+                );
+
+                const history = result.rows.map(row => ({
+                    id: Number(row.id),
+                    from: row.from_user,
+                    to: row.to_user,
+                    text: row.text,
+                    time: row.time,
+                    date: row.date
+                }));
+
                 ws.send(JSON.stringify({
                     type: 'chat_history',
                     messages: history,
                     withUser: msg.withUserId
                 }));
             }
-            
+
             // СТАТУС ПЕЧАТИ
             if (msg.type === 'typing') {
                 const toUser = users.get(msg.to);
@@ -167,10 +222,10 @@ wss.on('connection', (ws) => {
                     }));
                 }
             }
-            
+
         } catch(e) { console.log('Ошибка:', e); }
     });
-    
+
     ws.on('close', () => {
         if (userId) {
             onlineUsers.delete(userId);
@@ -183,7 +238,14 @@ wss.on('connection', (ws) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 Сервер запущен на порту ${PORT}`);
-    console.log(`💾 История сохранена: ${messages.size} чатов\n`);
-});
+
+initDb()
+    .then(() => {
+        server.listen(PORT, '0.0.0.0', () => {
+            console.log(`\n🚀 Сервер запущен на порту ${PORT}\n`);
+        });
+    })
+    .catch(err => {
+        console.error('❌ Ошибка инициализации базы данных:', err);
+        process.exit(1);
+    });
