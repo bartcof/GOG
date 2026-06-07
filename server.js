@@ -12,10 +12,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
-// Подключение к БД
+// Подключение к БД Railway (PostgreSQL)
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+    ssl: { rejectUnauthorized: false }
 });
 
 // СОЗДАНИЕ ТАБЛИЦ
@@ -176,7 +176,6 @@ wss.on('connection', (ws) => {
                     const referrer = await pool.query('SELECT id FROM users WHERE invite_code = $1', [msg.refCode]);
                     if (referrer.rows.length > 0 && referrer.rows[0].id !== userId) {
                         await addFriend(referrer.rows[0].id, userId);
-                        // Уведомляем реферера
                         const referrerWs = activeUsers.get(referrer.rows[0].id);
                         if (referrerWs && referrerWs.readyState === WebSocket.OPEN) {
                             referrerWs.send(JSON.stringify({
@@ -187,10 +186,8 @@ wss.on('connection', (ws) => {
                     }
                 }
                 
-                // Отправляем историю и обновления
                 await sendHistory(ws, userId);
                 
-                // Отправляем список друзей
                 const friendsList = await getFriends(userId);
                 ws.send(JSON.stringify({ type: 'friends_list', friends: friendsList }));
                 
@@ -229,7 +226,6 @@ wss.on('connection', (ws) => {
                 const success = await addFriend(msg.userId, msg.friendId);
                 ws.send(JSON.stringify({ type: 'friend_added', success: success }));
                 
-                // Отправляем обновленный список друзей
                 const friendsList = await getFriends(msg.userId);
                 ws.send(JSON.stringify({ type: 'friends_list', friends: friendsList }));
                 
@@ -292,7 +288,6 @@ wss.on('connection', (ws) => {
                     }));
                 }
                 
-                // Отправляем подтверждение отправителю
                 ws.send(JSON.stringify({ 
                     type: 'message_sent',
                     messageId: messageId 
@@ -327,5 +322,5 @@ wss.on('connection', (ws) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🚀 СЕРВЕР ЗАПУЩЕН на порту ${PORT}`);
-    console.log(`📱 Откройте в браузере: http://localhost:${PORT}\n`);
+    console.log(`📱 Откройте в браузере: https://your-app.up.railway.app\n`);
 });
