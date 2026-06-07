@@ -21,7 +21,6 @@
             --accent: #50a6e5;
             --divider: #2c3a47;
             --success: #4cd137;
-            --danger: #e74c3c;
         }
 
         body {
@@ -37,14 +36,12 @@
             width: 100%;
         }
 
-        /* Боковая панель */
         .sidebar {
             width: 360px;
             background: var(--bg);
             border-right: 1px solid var(--divider);
             display: flex;
             flex-direction: column;
-            position: relative;
         }
 
         .sidebar-header {
@@ -71,11 +68,6 @@
             font-size: 28px;
             cursor: pointer;
             overflow: hidden;
-            transition: transform 0.2s;
-        }
-
-        .avatar:hover {
-            transform: scale(1.05);
         }
 
         .avatar img {
@@ -99,11 +91,6 @@
             cursor: pointer;
             padding: 8px;
             border-radius: 50%;
-            transition: background 0.2s;
-        }
-
-        .icon-btn:hover {
-            background: rgba(80, 166, 229, 0.1);
         }
 
         .search-input {
@@ -115,7 +102,6 @@
             color: var(--text);
             font-size: 16px;
             outline: none;
-            transition: border-color 0.2s;
         }
 
         .search-input:focus {
@@ -138,7 +124,6 @@
             font-size: 14px;
             cursor: pointer;
             border-radius: 12px;
-            transition: all 0.2s;
         }
 
         .tab.active {
@@ -158,7 +143,6 @@
             padding: 12px;
             cursor: pointer;
             border-radius: 12px;
-            transition: background 0.2s;
             margin-bottom: 4px;
         }
 
@@ -221,14 +205,8 @@
             border-radius: 20px;
             font-size: 12px;
             cursor: pointer;
-            transition: opacity 0.2s;
         }
 
-        .friend-btn:hover {
-            opacity: 0.8;
-        }
-
-        /* Чат */
         .chat-area {
             flex: 1;
             display: flex;
@@ -315,7 +293,6 @@
             max-width: 70%;
             padding: 10px 14px;
             border-radius: 18px;
-            position: relative;
         }
 
         .message.sent .message-bubble {
@@ -372,11 +349,6 @@
             border-radius: 50%;
             cursor: pointer;
             font-size: 20px;
-            transition: transform 0.2s;
-        }
-
-        .send-btn:hover {
-            transform: scale(1.05);
         }
 
         .empty-state {
@@ -386,7 +358,6 @@
             padding: 20px;
         }
 
-        /* Модальные окна */
         .modal {
             display: none;
             position: fixed;
@@ -407,8 +378,6 @@
             border-radius: 20px;
             width: 90%;
             max-width: 400px;
-            max-height: 80vh;
-            overflow-y: auto;
         }
 
         .modal-content h3 {
@@ -446,12 +415,10 @@
             font-size: 32px;
             cursor: pointer;
             border: 2px solid transparent;
-            transition: all 0.2s;
         }
 
         .avatar-option.selected {
             border-color: var(--accent);
-            transform: scale(1.05);
         }
 
         .avatar-option img {
@@ -469,11 +436,6 @@
             text-align: center;
             cursor: pointer;
             margin: 12px 0;
-            transition: opacity 0.2s;
-        }
-
-        .upload-btn:hover {
-            opacity: 0.8;
         }
 
         .modal-buttons {
@@ -524,7 +486,6 @@
             font-size: 14px;
             z-index: 1000;
             animation: slideUp 0.3s ease;
-            white-space: nowrap;
         }
 
         @keyframes slideUp {
@@ -538,6 +499,15 @@
             }
         }
 
+        .menu-toggle, .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
@@ -546,12 +516,10 @@
                 z-index: 100;
                 transition: left 0.3s;
             }
-
             .sidebar.open {
                 left: 0;
             }
-
-            .menu-toggle {
+            .back-btn {
                 display: block;
             }
         }
@@ -560,37 +528,14 @@
             .menu-toggle {
                 display: none;
             }
-        }
-
-        .menu-toggle {
-            background: none;
-            border: none;
-            color: var(--accent);
-            font-size: 24px;
-            cursor: pointer;
-            padding: 8px;
-        }
-
-        .back-btn {
-            background: none;
-            border: none;
-            color: var(--accent);
-            font-size: 24px;
-            cursor: pointer;
-            padding: 8px;
-            display: none;
-        }
-
-        @media (max-width: 768px) {
             .back-btn {
-                display: block;
+                display: none;
             }
         }
     </style>
 </head>
 <body>
 <div class="app">
-    <!-- Боковая панель -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="profile-card">
@@ -610,7 +555,6 @@
         </div>
     </div>
 
-    <!-- Чат -->
     <div class="chat-area">
         <div class="chat-header">
             <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
@@ -631,7 +575,6 @@
     </div>
 </div>
 
-<!-- Модальные окна -->
 <div class="modal" id="profileModal">
     <div class="modal-content">
         <h3>✏️ Редактировать профиль</h3>
@@ -679,7 +622,6 @@
     let selectedAvatarType = 'emoji';
     let inviteLink = '';
 
-    // Инициализация
     async function init() {
         const urlParams = new URLSearchParams(window.location.search);
         const refCode = urlParams.get('ref');
