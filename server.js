@@ -12,10 +12,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
-// Подключение к БД Railway (PostgreSQL)
+// Подключение к БД Railway
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 // СОЗДАНИЕ ТАБЛИЦ
@@ -41,7 +41,6 @@ async function initDB() {
                 to_user VARCHAR(100) REFERENCES users(id) ON DELETE CASCADE,
                 text TEXT,
                 time VARCHAR(20),
-                is_read BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
@@ -50,7 +49,6 @@ async function initDB() {
             CREATE TABLE IF NOT EXISTS friends (
                 user_id VARCHAR(100) REFERENCES users(id) ON DELETE CASCADE,
                 friend_id VARCHAR(100) REFERENCES users(id) ON DELETE CASCADE,
-                status VARCHAR(20) DEFAULT 'accepted',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (user_id, friend_id)
             )
@@ -82,7 +80,7 @@ async function broadcastUserList() {
             }
         }
     } catch(e) {
-        console.error('Ошибка broadcastUserList:', e.message);
+        console.error('Ошибка broadcast:', e.message);
     }
 }
 
@@ -96,7 +94,7 @@ async function sendHistory(ws, userId) {
             ws.send(JSON.stringify({ type: 'chat_history', messages: result.rows }));
         }
     } catch(e) {
-        console.error('Ошибка sendHistory:', e.message);
+        console.error('Ошибка истории:', e.message);
     }
 }
 
@@ -109,14 +107,8 @@ async function addFriend(userId, friendId) {
             [userId, friendId]
         );
         if (existing.rows.length === 0) {
-            await pool.query(
-                'INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)',
-                [userId, friendId]
-            );
-            await pool.query(
-                'INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)',
-                [friendId, userId]
-            );
+            await pool.query('INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)', [userId, friendId]);
+            await pool.query('INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)', [friendId, userId]);
             return true;
         }
         return false;
@@ -136,7 +128,6 @@ async function getFriends(userId) {
         );
         return result.rows;
     } catch(e) {
-        console.error('Ошибка getFriends:', e.message);
         return [];
     }
 }
@@ -171,7 +162,7 @@ wss.on('connection', (ws) => {
                     userData: userData.rows[0]
                 }));
                 
-                // Обработка реферального кода
+                // Реферальная система
                 if (msg.refCode && msg.refCode !== 'null' && msg.refCode !== 'undefined') {
                     const referrer = await pool.query('SELECT id FROM users WHERE invite_code = $1', [msg.refCode]);
                     if (referrer.rows.length > 0 && referrer.rows[0].id !== userId) {
@@ -195,19 +186,13 @@ wss.on('connection', (ws) => {
             }
             
             if (msg.type === 'update_profile') {
-                await pool.query(
-                    'UPDATE users SET name = $1, bio = $2 WHERE id = $3',
-                    [msg.name, msg.bio || '', msg.userId]
-                );
+                await pool.query('UPDATE users SET name = $1, bio = $2 WHERE id = $3', [msg.name, msg.bio || '', msg.userId]);
                 await broadcastUserList();
                 ws.send(JSON.stringify({ type: 'profile_updated' }));
             }
             
             if (msg.type === 'update_avatar') {
-                await pool.query(
-                    'UPDATE users SET avatar = $1, avatar_type = $2 WHERE id = $3',
-                    [msg.avatar, msg.avatarType, msg.userId]
-                );
+                await pool.query('UPDATE users SET avatar = $1, avatar_type = $2 WHERE id = $3', [msg.avatar, msg.avatarType, msg.userId]);
                 await broadcastUserList();
                 ws.send(JSON.stringify({ type: 'avatar_updated' }));
             }
@@ -264,7 +249,7 @@ wss.on('connection', (ws) => {
             }
             
             if (msg.type === 'message') {
-                const messageId = Date.now() + Math.random() * 10000;
+                const messageId = Date.now();
                 const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                 
                 await pool.query(
@@ -276,51 +261,30 @@ wss.on('connection', (ws) => {
                 if (toWs && toWs.readyState === WebSocket.OPEN) {
                     toWs.send(JSON.stringify({
                         type: 'new_message',
-                        message: { 
-                            id: messageId, 
-                            from: msg.from, 
-                            to: msg.to,
-                            text: msg.text, 
-                            time: time 
-                        },
+                        message: { id: messageId, from: msg.from, to: msg.to, text: msg.text, time: time },
                         fromName: msg.fromName,
                         fromAvatar: msg.fromAvatar
                     }));
                 }
                 
-                ws.send(JSON.stringify({ 
-                    type: 'message_sent',
-                    messageId: messageId 
-                }));
+                ws.send(JSON.stringify({ type: 'message_sent', messageId: messageId }));
             }
             
         } catch(e) {
-            console.error('Ошибка обработки сообщения:', e.message);
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'error', message: e.message }));
-            }
+            console.error('Ошибка:', e.message);
         }
     });
     
     ws.on('close', async () => {
         if (userId) {
-            try {
-                await pool.query('UPDATE users SET online = FALSE WHERE id = $1', [userId]);
-                activeUsers.delete(userId);
-                await broadcastUserList();
-            } catch(e) {
-                console.error('Ошибка при закрытии:', e.message);
-            }
+            await pool.query('UPDATE users SET online = FALSE WHERE id = $1', [userId]);
+            activeUsers.delete(userId);
+            await broadcastUserList();
         }
-    });
-    
-    ws.on('error', (err) => {
-        console.error('WebSocket ошибка:', err.message);
     });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 СЕРВЕР ЗАПУЩЕН на порту ${PORT}`);
-    console.log(`📱 Откройте в браузере: https://your-app.up.railway.app\n`);
+    console.log(`🚀 Сервер на порту ${PORT}`);
 });
