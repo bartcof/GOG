@@ -5,17 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#17212b">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>✨ Мессенджер ✨</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        /* Основные переменные */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
         :root {
             --bg: #17212b;
             --header: #1f2a36;
@@ -37,15 +30,9 @@
             width: 100%;
         }
 
-        /* Главный контейнер */
-        .app {
-            width: 100%;
-            height: 100vh;
-            display: flex;
-            position: relative;
-        }
+        .app { width: 100%; height: 100vh; display: flex; position: relative; }
 
-        /* Боковая панель (диалоги) */
+        /* Боковая панель */
         .dialogs {
             width: 100%;
             max-width: 360px;
@@ -63,11 +50,8 @@
             background: var(--bg);
         }
 
-        .dialogs.open {
-            transform: translateX(0);
-        }
+        .dialogs.open { transform: translateX(0); }
 
-        /* Шапка диалогов */
         .dialogs-header {
             background: var(--header);
             padding: 12px 16px;
@@ -82,15 +66,9 @@
             margin-bottom: 12px;
         }
 
-        .profile-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
+        .profile-left { display: flex; align-items: center; gap: 12px; }
         .avatar {
-            width: 44px;
-            height: 44px;
+            width: 44px; height: 44px;
             background: linear-gradient(135deg, var(--accent), #2b5278);
             border-radius: 50%;
             display: flex;
@@ -99,55 +77,25 @@
             font-size: 22px;
             cursor: pointer;
         }
-
-        .profile-name {
-            font-weight: 600;
-            color: var(--text);
-            font-size: 17px;
-        }
-
-        .profile-status {
-            font-size: 11px;
-            color: var(--text-secondary);
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 16px;
-        }
-
+        .profile-name { font-weight: 600; color: var(--text); font-size: 17px; }
+        .profile-status { font-size: 11px; color: var(--text-secondary); }
         .icon-btn {
-            background: none;
-            border: none;
-            color: var(--accent);
-            font-size: 22px;
-            cursor: pointer;
-            padding: 4px;
-            min-width: 44px;
-            min-height: 44px;
+            background: none; border: none;
+            color: var(--accent); font-size: 22px;
+            cursor: pointer; padding: 4px;
+            min-width: 44px; min-height: 44px;
         }
 
-        /* Поиск */
-        .search-box {
-            margin-top: 12px;
-        }
-
+        .search-box { margin-top: 12px; }
         .search-input {
-            width: 100%;
-            padding: 12px 16px;
+            width: 100%; padding: 12px 16px;
             background: var(--bg);
             border: 1px solid var(--divider);
             border-radius: 30px;
-            color: var(--text);
-            font-size: 16px;
+            color: var(--text); font-size: 16px;
             outline: none;
         }
 
-        .search-input::placeholder {
-            color: var(--text-secondary);
-        }
-
-        /* Списки */
         .dialogs-list {
             flex: 1;
             overflow-y: auto;
@@ -159,18 +107,13 @@
             align-items: center;
             padding: 12px 16px;
             cursor: pointer;
-            transition: background 0.2s;
             border-bottom: 1px solid var(--divider);
             min-height: 72px;
         }
-
-        .dialog-item:active {
-            background: var(--header);
-        }
+        .dialog-item:active { background: var(--header); }
 
         .dialog-avatar {
-            width: 52px;
-            height: 52px;
+            width: 52px; height: 52px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--accent), #2b5278);
             display: flex;
@@ -181,30 +124,16 @@
             position: relative;
             flex-shrink: 0;
         }
-
         .online-dot {
             position: absolute;
-            bottom: 2px;
-            right: 2px;
-            width: 14px;
-            height: 14px;
+            bottom: 2px; right: 2px;
+            width: 14px; height: 14px;
             background: var(--success);
             border-radius: 50%;
             border: 2px solid var(--bg);
         }
-
-        .dialog-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .dialog-name {
-            font-weight: 500;
-            color: var(--text);
-            font-size: 16px;
-            margin-bottom: 4px;
-        }
-
+        .dialog-info { flex: 1; min-width: 0; }
+        .dialog-name { font-weight: 500; color: var(--text); font-size: 16px; margin-bottom: 4px; }
         .dialog-last {
             font-size: 13px;
             color: var(--text-secondary);
@@ -213,7 +142,7 @@
             text-overflow: ellipsis;
         }
 
-        /* Основная область чата */
+        /* Чат */
         .chat-area {
             flex: 1;
             display: flex;
@@ -231,36 +160,16 @@
             gap: 12px;
             border-bottom: 1px solid var(--divider);
         }
-
-        .menu-toggle {
-            background: none;
-            border: none;
-            color: var(--accent);
-            font-size: 24px;
-            cursor: pointer;
-            width: 44px;
-            height: 44px;
+        .menu-toggle, .back-btn {
+            background: none; border: none;
+            color: var(--accent); font-size: 24px;
+            cursor: pointer; width: 44px; height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-
-        .back-btn {
-            background: none;
-            border: none;
-            color: var(--accent);
-            font-size: 24px;
-            cursor: pointer;
-            width: 44px;
-            height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
         .chat-avatar {
-            width: 44px;
-            height: 44px;
+            width: 44px; height: 44px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--accent), #2b5278);
             display: flex;
@@ -269,25 +178,9 @@
             font-size: 22px;
             flex-shrink: 0;
         }
-
-        .chat-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .chat-name {
-            font-weight: 600;
-            color: var(--text);
-            font-size: 17px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .chat-status {
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
+        .chat-info { flex: 1; min-width: 0; }
+        .chat-name { font-weight: 600; color: var(--text); font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-status { font-size: 12px; color: var(--text-secondary); }
 
         /* Сообщения */
         .messages-area {
@@ -299,58 +192,21 @@
             gap: 8px;
             -webkit-overflow-scrolling: touch;
         }
-
-        .message {
-            display: flex;
-            animation: fadeIn 0.2s;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .message.sent {
-            justify-content: flex-end;
-        }
-
-        .message.received {
-            justify-content: flex-start;
-        }
-
+        .message { display: flex; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .message.sent { justify-content: flex-end; }
+        .message.received { justify-content: flex-start; }
         .message-bubble {
             max-width: 80%;
             padding: 10px 14px;
             border-radius: 18px;
-            position: relative;
         }
+        .message.sent .message-bubble { background: var(--bubble-sent); color: var(--text); border-bottom-right-radius: 4px; }
+        .message.received .message-bubble { background: var(--bubble-received); color: var(--text); border-bottom-left-radius: 4px; }
+        .message-text { font-size: 15px; line-height: 1.4; word-wrap: break-word; }
+        .message-time { font-size: 10px; margin-top: 4px; opacity: 0.7; text-align: right; }
 
-        .message.sent .message-bubble {
-            background: var(--bubble-sent);
-            color: var(--text);
-            border-bottom-right-radius: 4px;
-        }
-
-        .message.received .message-bubble {
-            background: var(--bubble-received);
-            color: var(--text);
-            border-bottom-left-radius: 4px;
-        }
-
-        .message-text {
-            font-size: 15px;
-            line-height: 1.4;
-            word-wrap: break-word;
-        }
-
-        .message-time {
-            font-size: 10px;
-            margin-top: 4px;
-            opacity: 0.7;
-            text-align: right;
-        }
-
-        /* Панель ввода */
+        /* Ввод */
         .input-panel {
             background: var(--header);
             padding: 10px 12px;
@@ -360,7 +216,6 @@
             align-items: flex-end;
             border-top: 1px solid var(--divider);
         }
-
         .input-field {
             flex: 1;
             padding: 12px 16px;
@@ -374,13 +229,11 @@
             outline: none;
             max-height: 100px;
         }
-
         .send-btn {
             background: var(--accent);
             border: none;
             color: white;
-            width: 44px;
-            height: 44px;
+            width: 44px; height: 44px;
             border-radius: 50%;
             cursor: pointer;
             font-size: 18px;
@@ -389,18 +242,7 @@
             justify-content: center;
             flex-shrink: 0;
         }
-
-        .send-btn:active {
-            transform: scale(0.95);
-        }
-
-        /* Пустые состояния */
-        .empty-state {
-            text-align: center;
-            color: var(--text-secondary);
-            margin-top: 50px;
-            padding: 20px;
-        }
+        .empty-state { text-align: center; color: var(--text-secondary); margin-top: 50px; padding: 20px; }
 
         /* Уведомления */
         .toast {
@@ -420,27 +262,20 @@
             white-space: normal;
             text-align: center;
         }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
+        @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
         /* Модальное окно */
         .modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background: rgba(0,0,0,0.7);
             backdrop-filter: blur(4px);
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
-
         .modal-content {
             background: var(--header);
             padding: 24px;
@@ -448,16 +283,9 @@
             width: 90%;
             max-width: 320px;
         }
-
-        .modal-content h3 {
-            color: var(--text);
-            margin-bottom: 16px;
-            font-size: 18px;
-        }
-
+        .modal-content h3 { color: var(--text); margin-bottom: 16px; font-size: 18px; }
         .modal-content input {
-            width: 100%;
-            padding: 12px;
+            width: 100%; padding: 12px;
             margin: 8px 0;
             background: var(--bg);
             border: none;
@@ -465,93 +293,24 @@
             color: var(--text);
             font-size: 16px;
         }
+        .modal-buttons { display: flex; gap: 12px; margin-top: 20px; }
+        .modal-buttons button { flex: 1; padding: 12px; border: none; border-radius: 12px; cursor: pointer; font-weight: 500; font-size: 14px; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-secondary { background: var(--bg); color: var(--text-secondary); }
 
-        .modal-buttons {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
-        }
-
-        .modal-buttons button {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 14px;
-        }
-
-        .btn-primary {
-            background: var(--accent);
-            color: white;
-        }
-
-        .btn-secondary {
-            background: var(--bg);
-            color: var(--text-secondary);
-        }
-
-        /* Адаптация для больших экранов */
         @media (min-width: 768px) {
-            .dialogs {
-                transform: translateX(0);
-                position: relative;
-                width: 360px;
-            }
-            .menu-toggle {
-                display: none;
-            }
-            .chat-area {
-                width: calc(100% - 360px);
-            }
+            .dialogs { transform: translateX(0); position: relative; width: 360px; }
+            .menu-toggle { display: none; }
+            .chat-area { width: calc(100% - 360px); }
         }
-
-        /* Адаптация для маленьких экранов */
         @media (max-width: 767px) {
-            .dialogs {
-                width: 85%;
-                max-width: 320px;
-            }
-            .message-bubble {
-                max-width: 85%;
-            }
-            .dialog-avatar {
-                width: 48px;
-                height: 48px;
-                font-size: 24px;
-            }
-        }
-
-        /* Адаптация для iPhone с вырезом */
-        @supports (padding: max(0px)) {
-            .dialogs-header,
-            .chat-header {
-                padding-left: max(16px, env(safe-area-inset-left));
-                padding-right: max(16px, env(safe-area-inset-right));
-            }
-            .input-panel {
-                padding-left: max(12px, env(safe-area-inset-left));
-                padding-right: max(12px, env(safe-area-inset-right));
-            }
-        }
-
-        /* Стили для скролла (красивые) */
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--bg);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--divider);
-            border-radius: 4px;
+            .dialogs { width: 85%; max-width: 320px; }
+            .message-bubble { max-width: 85%; }
         }
     </style>
 </head>
 <body>
 <div class="app">
-    <!-- Боковая панель с диалогами -->
     <div class="dialogs" id="dialogs">
         <div class="dialogs-header">
             <div class="profile-info">
@@ -562,20 +321,15 @@
                         <div class="profile-status" id="myStatus">онлайн</div>
                     </div>
                 </div>
-                <div class="header-actions">
-                    <button class="icon-btn" onclick="openProfile()">⚙️</button>
-                </div>
+                <button class="icon-btn" onclick="openProfile()">⚙️</button>
             </div>
             <div class="search-box">
                 <input type="text" class="search-input" id="searchInput" placeholder="🔍 Поиск" onkeyup="searchUsers()">
             </div>
         </div>
-        <div class="dialogs-list" id="dialogsList">
-            <div class="empty-state">👥 Поиск пользователей...</div>
-        </div>
+        <div class="dialogs-list" id="dialogsList"><div class="empty-state">👥 Поиск пользователей...</div></div>
     </div>
     
-    <!-- Область чата -->
     <div class="chat-area">
         <div class="chat-header">
             <button class="menu-toggle" onclick="toggleDialogs()">☰</button>
@@ -586,11 +340,7 @@
                 <div class="chat-status" id="chatStatus">Выберите чат</div>
             </div>
         </div>
-        
-        <div class="messages-area" id="messagesArea">
-            <div class="empty-state">✨ Нажмите на пользователя<br>чтобы начать общение</div>
-        </div>
-        
+        <div class="messages-area" id="messagesArea"><div class="empty-state">✨ Нажмите на пользователя<br>чтобы начать общение</div></div>
         <div class="input-panel">
             <textarea class="input-field" id="messageInput" placeholder="Сообщение" rows="1" onkeypress="handleEnter(event)"></textarea>
             <button class="send-btn" onclick="sendMessage()">📤</button>
@@ -598,7 +348,6 @@
     </div>
 </div>
 
-<!-- Модальное окно профиля -->
 <div class="modal" id="profileModal">
     <div class="modal-content">
         <h3>📝 Настройки</h3>
@@ -619,7 +368,6 @@
     let currentChatId = null;
     let searchTimeout = null;
     
-    // Инициализация
     function init() {
         let savedId = localStorage.getItem('userId');
         if (!savedId) {
@@ -643,7 +391,6 @@
         document.getElementById('myAvatar').textContent = currentUser.avatar;
         connect();
         
-        // Закрываем панель при клике вне её на телефоне
         document.addEventListener('click', function(e) {
             const dialogs = document.getElementById('dialogs');
             if (window.innerWidth <= 768 && dialogs.classList.contains('open')) {
@@ -654,7 +401,6 @@
         });
     }
     
-    // Подключение к серверу
     function connect() {
         const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
         ws = new WebSocket(`${protocol}//${location.host}`);
@@ -676,27 +422,55 @@
                 renderUsers();
             }
             
+            if (data.type === 'chat_history') {
+                // Загружаем историю сообщений из БД
+                data.messages.forEach(msg => {
+                    const otherId = msg.from_user === currentUser.id ? msg.to_user : msg.from_user;
+                    if (!messages[otherId]) messages[otherId] = [];
+                    messages[otherId].push({
+                        text: msg.text,
+                        time: msg.time,
+                        isMine: msg.from_user === currentUser.id,
+                        id: msg.id
+                    });
+                });
+                if (currentChatId) renderMessages();
+                renderUsers();
+                console.log('📜 История загружена:', data.messages.length, 'сообщений');
+            }
+            
             if (data.type === 'search_results') {
                 users = data.users;
                 renderUsers();
-                if (data.query && data.query.length > 0) {
-                    showToast(`🔍 Найдено ${data.users.length} пользователей`);
-                }
+                if (data.query && data.query.length > 0) showToast(`🔍 Найдено ${data.users.length} пользователей`);
             }
             
             if (data.type === 'new_message') {
-                if (!messages[data.from]) messages[data.from] = [];
-                messages[data.from].push({
-                    text: data.text,
-                    time: data.time,
+                if (!messages[data.message.from]) messages[data.message.from] = [];
+                messages[data.message.from].push({
+                    text: data.message.text,
+                    time: data.message.time,
                     isMine: false
                 });
-                if (currentChatId === data.from) {
+                if (currentChatId === data.message.from) {
                     renderMessages();
                 } else {
-                    showToast(`📩 ${data.fromName}: ${data.text.substring(0, 30)}`);
+                    showToast(`📩 ${data.fromName}: ${data.message.text.substring(0, 30)}`);
                 }
                 renderUsers();
+            }
+            
+            if (data.type === 'message_sent') {
+                if (currentChatId === data.to) {
+                    const msgs = messages[currentChatId];
+                    if (msgs && msgs.length > 0) {
+                        const last = msgs[msgs.length - 1];
+                        if (last.text === data.text) {
+                            last.time = data.time;
+                            renderMessages();
+                        }
+                    }
+                }
             }
         };
         
@@ -706,7 +480,6 @@
         };
     }
     
-    // Поиск пользователей
     function searchUsers() {
         if (searchTimeout) clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
@@ -723,7 +496,6 @@
         }, 500);
     }
     
-    // Отображение списка пользователей
     function renderUsers() {
         const container = document.getElementById('dialogsList');
         
@@ -753,14 +525,12 @@
         }).join('');
     }
     
-    // Открытие чата
     function openChat(userId, name, avatar) {
         currentChatId = userId;
         document.getElementById('chatName').textContent = name;
         document.getElementById('chatAvatar').textContent = avatar;
         document.getElementById('chatStatus').innerHTML = 'онлайн';
         
-        // Закрываем панель на телефонах
         if (window.innerWidth <= 768) {
             document.getElementById('dialogs').classList.remove('open');
         }
@@ -769,7 +539,6 @@
         setTimeout(() => document.getElementById('messageInput').focus(), 100);
     }
     
-    // Закрытие чата
     function closeChat() {
         currentChatId = null;
         document.getElementById('chatName').textContent = 'Мессенджер';
@@ -778,7 +547,6 @@
         document.getElementById('messagesArea').innerHTML = '<div class="empty-state">✨ Нажмите на пользователя<br>чтобы начать общение</div>';
     }
     
-    // Отображение сообщений
     function renderMessages() {
         if (!currentChatId) return;
         const msgs = messages[currentChatId] || [];
@@ -800,7 +568,6 @@
         container.scrollTop = container.scrollHeight;
     }
     
-    // Отправка сообщения
     function sendMessage() {
         const input = document.getElementById('messageInput');
         const text = input.value.trim();
@@ -827,18 +594,9 @@
         renderMessages();
         renderUsers();
         input.value = '';
-        
-        // Авто-высота для textarea
         input.style.height = 'auto';
     }
     
-    // Авто-высота для textarea
-    function autoResize(textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
-    }
-    
-    // Обработка Enter
     function handleEnter(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -847,14 +605,17 @@
         autoResize(e.target);
     }
     
-    // Открытие настроек профиля
+    function autoResize(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
+    }
+    
     function openProfile() {
         document.getElementById('editName').value = currentUser.name;
         document.getElementById('editAvatar').value = currentUser.avatar;
         document.getElementById('profileModal').style.display = 'flex';
     }
     
-    // Сохранение профиля
     function saveProfile() {
         const name = document.getElementById('editName').value.trim();
         const avatar = document.getElementById('editAvatar').value.trim();
@@ -867,22 +628,13 @@
         closeModal();
         showToast('✅ Профиль обновлён');
         
-        // Переподключаемся с новыми данными
         if (ws) ws.close();
         setTimeout(() => connect(), 500);
     }
     
-    // Открыть/закрыть боковую панель
-    function toggleDialogs() {
-        document.getElementById('dialogs').classList.toggle('open');
-    }
+    function toggleDialogs() { document.getElementById('dialogs').classList.toggle('open'); }
+    function closeModal() { document.getElementById('profileModal').style.display = 'none'; }
     
-    // Закрыть модальное окно
-    function closeModal() {
-        document.getElementById('profileModal').style.display = 'none';
-    }
-    
-    // Показать уведомление
     function showToast(msg) {
         const toast = document.createElement('div');
         toast.className = 'toast';
@@ -891,7 +643,6 @@
         setTimeout(() => toast.remove(), 2500);
     }
     
-    // Экранирование HTML
     function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -899,7 +650,6 @@
         return div.innerHTML;
     }
     
-    // Запуск
     init();
 </script>
 </body>
