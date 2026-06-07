@@ -95,6 +95,7 @@
             color: var(--text); font-size: 16px;
             outline: none;
         }
+        .search-input:focus { border-color: var(--accent); }
 
         .dialogs-list {
             flex: 1;
@@ -206,14 +207,14 @@
         .message-text { font-size: 15px; line-height: 1.4; word-wrap: break-word; }
         .message-time { font-size: 10px; margin-top: 4px; opacity: 0.7; text-align: right; }
 
-        /* Ввод */
+        /* Ввод - ИСПРАВЛЕНО */
         .input-panel {
             background: var(--header);
             padding: 10px 12px;
             padding-bottom: calc(10px + env(safe-area-inset-bottom));
             display: flex;
             gap: 10px;
-            align-items: flex-end;
+            align-items: center;
             border-top: 1px solid var(--divider);
         }
         .input-field {
@@ -225,9 +226,11 @@
             color: var(--text);
             font-size: 16px;
             font-family: inherit;
-            resize: none;
             outline: none;
-            max-height: 100px;
+        }
+        .input-field:focus {
+            outline: none;
+            border: none;
         }
         .send-btn {
             background: var(--accent);
@@ -241,6 +244,9 @@
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+        }
+        .send-btn:active {
+            transform: scale(0.95);
         }
         .empty-state { text-align: center; color: var(--text-secondary); margin-top: 50px; padding: 20px; }
 
@@ -342,7 +348,7 @@
         </div>
         <div class="messages-area" id="messagesArea"><div class="empty-state">✨ Нажмите на пользователя<br>чтобы начать общение</div></div>
         <div class="input-panel">
-            <textarea class="input-field" id="messageInput" placeholder="Сообщение" rows="1" onkeypress="handleEnter(event)"></textarea>
+            <input type="text" class="input-field" id="messageInput" placeholder="Сообщение" onkeypress="handleEnter(event)">
             <button class="send-btn" onclick="sendMessage()">📤</button>
         </div>
     </div>
@@ -423,7 +429,6 @@
             }
             
             if (data.type === 'chat_history') {
-                // Загружаем историю сообщений из БД
                 data.messages.forEach(msg => {
                     const otherId = msg.from_user === currentUser.id ? msg.to_user : msg.from_user;
                     if (!messages[otherId]) messages[otherId] = [];
@@ -436,7 +441,6 @@
                 });
                 if (currentChatId) renderMessages();
                 renderUsers();
-                console.log('📜 История загружена:', data.messages.length, 'сообщений');
             }
             
             if (data.type === 'search_results') {
@@ -536,7 +540,7 @@
         }
         
         renderMessages();
-        setTimeout(() => document.getElementById('messageInput').focus(), 100);
+        document.getElementById('messageInput').focus();
     }
     
     function closeChat() {
@@ -571,7 +575,20 @@
     function sendMessage() {
         const input = document.getElementById('messageInput');
         const text = input.value.trim();
-        if (!text || !currentChatId || !ws) return;
+        
+        if (!text) {
+            return;
+        }
+        
+        if (!currentChatId) {
+            showToast('❌ Выберите собеседника');
+            return;
+        }
+        
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            showToast('❌ Нет соединения с сервером');
+            return;
+        }
         
         const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
         
@@ -594,20 +611,14 @@
         renderMessages();
         renderUsers();
         input.value = '';
-        input.style.height = 'auto';
+        input.focus();
     }
     
     function handleEnter(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter') {
             e.preventDefault();
             sendMessage();
         }
-        autoResize(e.target);
-    }
-    
-    function autoResize(textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
     
     function openProfile() {
@@ -632,8 +643,13 @@
         setTimeout(() => connect(), 500);
     }
     
-    function toggleDialogs() { document.getElementById('dialogs').classList.toggle('open'); }
-    function closeModal() { document.getElementById('profileModal').style.display = 'none'; }
+    function toggleDialogs() { 
+        document.getElementById('dialogs').classList.toggle('open');
+    }
+    
+    function closeModal() { 
+        document.getElementById('profileModal').style.display = 'none'; 
+    }
     
     function showToast(msg) {
         const toast = document.createElement('div');
